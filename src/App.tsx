@@ -13,6 +13,11 @@ import Privacy from "./pages/Privacy"
 import ForgotPassword from "./pages/ForgotPassword"
 import VerifyResetPassword from "./pages/VerifyResetPassword"
 import ResetPassword from "./pages/ResetPassword"
+import Versus from "./pages/Versus"
+import JoinRoom from "./pages/JoinRoom"
+import CreateRoom from "./pages/CreateRoom"
+import Tournament from "./pages/Tournament"
+import Profile from "./pages/Profile"
 
 function App() {
 
@@ -40,6 +45,14 @@ function App() {
 
             <Route path="/" element={<ProtectedRoutes />}>
               <Route index element={<h1>Hello Wolrd</h1>} />
+              <Route  path="/versus" element={<Versus/>}/>
+              <Route  path="/joinroom" element={<JoinRoom/>}/>
+              <Route  path="/createroom" element={<CreateRoom/>}/>
+              <Route  path="/tournament" element={<Tournament/>}/>
+              <Route  path="/profile" element={<Profile/>}/>
+
+              
+
             </Route>
 
             <Route path="*" element={<>404</>} />

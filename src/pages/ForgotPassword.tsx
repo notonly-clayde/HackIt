@@ -55,11 +55,11 @@ const ForgotPassword = () => {
     }, [isSubmitSuccessful, reset])
 
     return (
-        <div className='h-screen flex flex-col justify-center items-center'>
-            <div className='flex flex-col gap-4 items-center w-100'>
+        <div className='min-h-screen flex flex-col justify-center items-center px-4 py-8'>
+            <div className='flex flex-col gap-4 items-center w-full max-w-md'>
                 <div className='text-center'>
-                    <h1 className='text-4xl font-bold text-gray-700 pb-4'>Forgot Password?</h1>
-                    <p className='text-lg font-lighter text-gray-600'>Don't worry! Please enter address associated. We'll send you reset instructions.</p>
+                    <h1 className='text-2xl sm:text-4xl font-bold text-gray-700 pb-4'>Forgot Password?</h1>
+                    <p className='text-sm sm:text-lg text-gray-600'>Don't worry! Please enter the address associated with your account. We'll send you reset instructions.</p>
                 </div>
 
                 <form className='w-full flex flex-col gap-4' onSubmit={handleSubmit(onSubmit)}>

@@ -17,4 +17,24 @@
     25% { transform: translateX(-6px); }
     75% { transform: translateX(6px); }
   }
+
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer components {
+  .page-container {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-heading {
+    @apply font-bold text-3xl sm:text-4xl lg:text-5xl xl:text-[3.5rem] bg-gradient-to-b from-highlight to-secondary bg-clip-text text-transparent;
+  }
+
+  .auth-form-container {
+    @apply w-full max-w-md flex flex-col gap-3 px-4 sm:px-6 py-6 sm:py-8 md:px-8 lg:px-12;
+  }
+}
+

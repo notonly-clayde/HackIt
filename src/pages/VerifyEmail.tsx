@@ -51,15 +51,15 @@ const VerifyEmail = () => {
     }, [resendCountdown])
 
     return (
-        <div className='h-screen flex flex-col justify-center items-center'>
-            <div className='flex flex-col items-center'>
+        <div className='min-h-screen flex flex-col justify-center items-center px-4 py-8'>
+            <div className='flex flex-col items-center w-full max-w-md'>
                 <div className='text-center'>
-                    <h1 className='text-4xl font-bold text-gray-700 pb-4'>Verify you email</h1>
-                    <p className='text-lg font-lighter text-gray-600'>Please enter the six digit verification code we sent to</p>
-                    <p className='text-lg font-bold text-gray-700'>{user?.email}</p>
+                    <h1 className='text-2xl sm:text-4xl font-bold text-gray-700 pb-4'>Verify your email</h1>
+                    <p className='text-sm sm:text-lg text-gray-600'>Please enter the six digit verification code we sent to</p>
+                    <p className='text-sm sm:text-lg font-bold text-gray-700 break-all'>{user?.email}</p>
                 </div>
 
-                <form className='' onSubmit={handleSubmit}>
+                <form className='w-full' onSubmit={handleSubmit}>
                     <OTPInput
                         value={otp}
                         onChange={setOtp}

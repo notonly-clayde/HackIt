@@ -10,6 +10,7 @@ import AuthService from '../services/AuthService'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import Button from '../components/common/Button'
+import AuthPanel from '../components/common/AuthPanel'
 import { FaCheck } from 'react-icons/fa6'
 
 const Login = () => {
@@ -57,13 +58,13 @@ const Login = () => {
   }, [isSubmitSuccessful, reset])
 
   return (
-    <div className="w-full min-h-screen flex justify-center md:justify-start bg-white">
-      <div className="w-96 flex flex-col gap-3 mx-12 my-4">
+    <div className="w-full min-h-screen flex flex-col md:flex-row md:justify-start bg-white">
+      <div className="auth-form-container md:flex-shrink-0 md:justify-start">
         <Link to='/' className="mb-4 text-gray-500 text-sm cursor-pointer flex items-center hover:underline w-fit">
           <IoArrowBackOutline className="mr-2" />
           Back to Home
         </Link>
-        <h1 className="text-2xl font-bold text-left pb-4 text-gray-800">Sign in to your account</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-left pb-2 sm:pb-4 text-midtone">Sign in to your account</h1>
 
         <OAuthProviders mode="login" />
 
@@ -92,7 +93,7 @@ const Login = () => {
             {...register("password")}
           />
 
-          <div className='flex justify-between'>
+          <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
             <label className='text-xs flex gap-2 items-center'>
               <input
                 className='peer'
@@ -124,7 +125,7 @@ const Login = () => {
           <Link to="/signup" className='font-semibold hover:underline'>Sign up</Link>
         </p>
       </div>
-      <div className="flex-1 min-h-screen bg-accent-gradient hidden md:block"></div>
+      <AuthPanel variant="login" />
     </div>
   )
 }
