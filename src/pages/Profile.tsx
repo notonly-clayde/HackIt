@@ -1,5 +1,4 @@
-import React from 'react'
-import Nav from '../components/Dashboard/Nav'
+
 
 const Profile = () => {
     return (
