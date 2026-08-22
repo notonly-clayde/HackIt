@@ -44,7 +44,7 @@ const Nav = () => {
         </div>
 
         {menuOpen && (
-          <div className="absolute left-0 right-0 top-full mt-2 lg:hidden rounded-2xl bg-primary/95 border border-highlight/20 backdrop-blur-sm overflow-hidden">
+          <div className="absolute left-0 right-0 top-full mt-2 lg:hidden rounded-2xl bg-primary/95 border border-highlight/20 backdrop-blur-sm overflow-hidden cursor-pointer">
             <a href="/" onClick={closeMenu} className="block text-midtone py-4 px-6 hover:bg-[#285a4846] border-b border-highlight/10">Home</a>
             <a href="#about" onClick={closeMenu} className="block text-midtone py-4 px-6 hover:bg-[#285a4846] border-b border-highlight/10">About Us</a>
             <a href="#faq" onClick={closeMenu} className="block text-midtone py-4 px-6 hover:bg-[#285a4846] border-b border-highlight/10">FAQ's</a>
