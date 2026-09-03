@@ -1,99 +1,209 @@
-import { useEffect, useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import OTPInput from '../components/common/OTPInput'
-import Button from '../components/common/Button'
-import { useNavigate } from 'react-router-dom'
-import { IoIosArrowRoundBack } from "react-icons/io";
-import AuthService from '../services/AuthService'
+import { useEffect, useState } from "react"
+
+import { useAuth } from "../contexts/AuthContext"
+
+import { useToast } from "../contexts/ToastContext"
+
+import OTPInput from "../components/common/OTPInput"
+
+import Button from "../components/common/Button"
+
+import { useLocation, useNavigate } from "react-router-dom"
+
+import { IoIosArrowRoundBack } from "react-icons/io"
+
+import AuthService from "../services/AuthService"
+import { isAdminEmail } from "../lib/adminEmails"
+
+
 
 const VerifyEmail = () => {
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-    const [error, setError] = useState<string | null>(null)
-    const [resendCountdown, setResendCountdown] = useState<number>(60)
-    const [resent, setResent] = useState<boolean>(false)
-    const { user, refresh } = useAuth()
-    const [otp, setOtp] = useState<string>("")
-    const nav = useNavigate()
 
-    const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
-        e.preventDefault()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-        setIsSubmitting(true)
-        const [, err] = await AuthService.verifyEmail({ email: user?.email as string, otp })
-        setIsSubmitting(false)
+  const [invalid, setInvalid] = useState(false)
 
-        if (err) {
-            setError(err)
-            return
-        }
+  const [resendCountdown, setResendCountdown] = useState(60)
 
-        refresh()
+  const [resent, setResent] = useState(false)
+
+  const { user, profile, refresh } = useAuth()
+
+  const toast = useToast()
+
+  const [otp, setOtp] = useState("")
+
+  const nav = useNavigate()
+  const location = useLocation()
+  const email = user?.email ?? (location.state as { email?: string } | null)?.email
+
+
+
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+
+    e.preventDefault()
+
+    setIsSubmitting(true)
+
+    const [, err] = await AuthService.verifyEmail({ email: email as string, otp })
+
+    setIsSubmitting(false)
+
+    if (err) {
+
+      toast.error(err)
+
+      setInvalid(true)
+
+      return
+
     }
 
-    const handleResend = async () => {
-        setOtp("")
-        setResent(true)
-        
-        await AuthService.resendVerifyEmailOTP({ email: user?.email as string })
+    toast.success("Email verified")
 
-        setResendCountdown(60)
-        setResent(false)
+    refresh()
+
+  }
+
+
+
+  const handleResend = async () => {
+
+    setOtp("")
+
+    setInvalid(false)
+
+    setResent(true)
+
+    await AuthService.resendVerifyEmailOTP({ email: email as string })
+
+    setResendCountdown(60)
+
+    setResent(false)
+
+    toast.info("Verification code resent")
+
+  }
+
+
+
+  useEffect(() => {
+    if (isAdminEmail(email) && !profile) {
+      void refresh()
     }
+  }, [email, profile, refresh])
 
-    useEffect(() => {
-        if (resendCountdown <= 0) return;
+  useEffect(() => {
 
-        const interval = setInterval(() => {
-            setResendCountdown((prev) => prev - 1)
-        }, 1000)
+    if (resendCountdown <= 0) return
 
-        return () => clearInterval(interval)
-    }, [resendCountdown])
+    const interval = setInterval(() => setResendCountdown((prev) => prev - 1), 1000)
 
-    return (
-        <div className='min-h-screen flex flex-col justify-center items-center px-4 py-8'>
-            <div className='flex flex-col items-center w-full max-w-md'>
-                <div className='text-center'>
-                    <h1 className='text-2xl sm:text-4xl font-bold text-gray-700 pb-4'>Verify your email</h1>
-                    <p className='text-sm sm:text-lg text-gray-600'>Please enter the six digit verification code we sent to</p>
-                    <p className='text-sm sm:text-lg font-bold text-gray-700 break-all'>{user?.email}</p>
-                </div>
+    return () => clearInterval(interval)
 
-                <form className='w-full' onSubmit={handleSubmit}>
-                    <OTPInput
-                        value={otp}
-                        onChange={setOtp}
-                        error={error}
-                        setError={setError}
-                    />
+  }, [resendCountdown])
 
-                    <Button
-                        type='submit'
-                        className='w-full'
-                        disabled={otp.length != 6 || isSubmitting || !!error}
-                        loading={isSubmitting}
-                    >
-                        Verify
-                    </Button>
-                </form>
 
-                <p className='text-md font-lighter text-gray-600 py-4'>
-                    Didn't get the email?
-                    <span className='ml-1'>
-                        {
-                            resendCountdown > 0
-                                ? <strong>Resend in {resendCountdown}s</strong>
-                                : <strong className='hover:underline cursor-pointer' onClick={handleResend}>{resent ? "Sent" : "Resend"}</strong>
-                        }
-                    </span>
-                </p>
-                <div className='flex gap-1 items-center text-md text-gray-700 cursor-pointer hover:underline' onClick={() => nav(-1)}>
-                    <IoIosArrowRoundBack size={25} />
-                    back
-                </div>
-            </div>
+
+  return (
+
+    <div className="min-h-screen page-bg flex flex-col justify-center items-center px-4 py-8">
+
+      <div className="ui-card w-full max-w-md p-6 sm:p-8 flex flex-col items-center">
+
+        <div className="text-center">
+
+          <p className="ui-kicker mb-2">Verification</p>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-accent tracking-tight">Verify your email</h1>
+
+          <p className="text-sm text-muted mt-3">Enter the six-digit code we sent to</p>
+
+          <p className="text-sm font-semibold text-accent break-all mt-1">{email}</p>
+
         </div>
-    )
+
+
+
+        <form className="w-full" onSubmit={handleSubmit}>
+
+          <OTPInput
+
+            value={otp}
+
+            onChange={setOtp}
+
+            invalid={invalid}
+
+            onClearInvalid={() => setInvalid(false)}
+
+          />
+
+          <Button
+
+            type="submit"
+
+            className="w-full"
+
+            disabled={otp.length != 6 || isSubmitting || invalid}
+
+            loading={isSubmitting}
+
+          >
+
+            Verify
+
+          </Button>
+
+        </form>
+
+
+
+        <p className="text-sm text-muted py-4 text-center">
+
+          Didn&apos;t get the email?{" "}
+
+          {resendCountdown > 0 ? (
+
+            <strong className="text-accent">Resend in {resendCountdown}s</strong>
+
+          ) : (
+
+            <strong className="text-highlight hover:underline cursor-pointer" onClick={handleResend}>
+
+              {resent ? "Sent" : "Resend"}
+
+            </strong>
+
+          )}
+
+        </p>
+
+        <button
+
+          type="button"
+
+          className="flex gap-1 items-center text-sm text-muted hover:text-highlight"
+
+          onClick={() => nav(-1)}
+
+        >
+
+          <IoIosArrowRoundBack size={22} />
+
+          Back
+
+        </button>
+
+      </div>
+
+    </div>
+
+  )
+
 }
 
+
+
 export default VerifyEmail
+

@@ -1,0 +1,422 @@
+export type TournamentStatus = "Open" | "Soon" | "Live" | "Ended"
+
+export type UserRole = "user" | "admin"
+export type UserStatus = "active" | "suspended"
+
+export type ReportTargetType = "user" | "tournament" | "problem"
+export type ReportCategory = "harassment" | "hate" | "sexual" | "spam" | "cheating" | "other"
+export type ReportStatus = "open" | "resolved" | "dismissed"
+
+export type CreateReportInput = {
+  targetType: ReportTargetType
+  targetId: string
+  contextTournamentId?: string | null
+  category: ReportCategory
+  details: string
+}
+
+export type ReportItem = {
+  id: string
+  reporterId: string
+  reporterDisplayName: string
+  reporterEmail: string
+  targetType: ReportTargetType
+  targetId: string
+  contextTournamentId: string | null
+  category: ReportCategory
+  details: string
+  status: ReportStatus
+  resolutionNote: string | null
+  resolvedById: string | null
+  resolvedAt: string | null
+  createdAt: string
+}
+
+export type ModerationActionItem = {
+  id: string
+  actorId: string
+  actorDisplayName: string
+  subjectUserId: string
+  type: "warn" | "suspend" | "unsuspend" | "promote" | "demote"
+  note: string | null
+  acknowledgedAt: string | null
+  createdAt: string
+}
+
+export type PublicUserProfile = {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  bio: string | null
+  elo1v1: number
+  eloTournament: number
+  peakElo1v1: number
+  winStreak1v1: number
+  wins: number
+  draws: number
+  matchCount: number
+  createdAt: string
+}
+
+export type AdminUserDetail = {
+  user: UserProfile
+  history: ModerationActionItem[]
+  reports: ReportItem[]
+}
+
+export type ActivityLogItem = {
+  id: string
+  action: string
+  actorType: "user" | "system"
+  actorId: string | null
+  actorDisplayName: string | null
+  actorEmail: string | null
+  targetType: string
+  targetId: string
+  tournamentId: string | null
+  summary: string
+  metadata: unknown
+  createdAt: string
+}
+
+export type ActivityLogListResponse = {
+  items: ActivityLogItem[]
+  nextCursor: string | null
+  actions: string[]
+}
+
+export type ActivityLogFilters = {
+  q?: string
+  action?: string
+  actorId?: string
+  targetType?: string
+  targetId?: string
+  tournamentId?: string
+  from?: string
+  to?: string
+  cursor?: string
+  limit?: number
+}
+
+export type ProblemDifficulty = "easy" | "medium" | "hard"
+export type ProblemVisibility = "private" | "pending" | "public"
+
+export type SampleTestCase = {
+  id: string
+  input: string
+  expectedOutput: string
+  order: number
+}
+
+export type TestCaseInput = {
+  input: string
+  expectedOutput: string
+  isSample: boolean
+  order?: number
+}
+
+export type ProblemSummary = {
+  id: string
+  title: string
+  difficulty: ProblemDifficulty
+  visibility: ProblemVisibility
+  authorId: string
+  author: string
+  timeLimitMs: number
+  memoryLimitMb: number
+  createdAt: string
+  reviewNote?: string | null
+}
+
+export type ProblemDetail = ProblemSummary & {
+  statement: string
+  starterPython: string | null
+  starterJs: string | null
+  starterCpp: string | null
+  sampleTests: SampleTestCase[]
+  hiddenTests?: SampleTestCase[]
+}
+
+export type CreateProblemInput = {
+  title: string
+  statement: string
+  difficulty?: ProblemDifficulty
+  timeLimitMs?: number
+  memoryLimitMb?: number
+  starterPython?: string | null
+  starterJs?: string | null
+  starterCpp?: string | null
+  testCases: TestCaseInput[]
+}
+
+export type UpdateProblemInput = Partial<CreateProblemInput>
+
+export type TournamentProblemItem = {
+  problemId: string
+  order: number
+  points: number
+  problem: ProblemDetail
+}
+
+export type TournamentProblemSetUpdate = {
+  tournamentId: string
+  problems: TournamentProblemItem[]
+}
+
+export type UserProfile = {
+  id: string
+  email: string
+  name: string
+  displayName: string
+  avatarUrl: string | null
+  bio: string | null
+  emailVerified: boolean
+  role: UserRole
+  status?: UserStatus
+  suspendedAt?: string | null
+  suspendReason?: string | null
+  elo1v1: number
+  eloTournament: number
+  peakElo1v1: number
+  winStreak1v1: number
+  wins: number
+  draws: number
+  matchCount: number
+  createdAt: string
+  updatedAt: string
+  lastSyncedAt: string
+  activeWarn?: {
+    id: string
+    note: string | null
+    createdAt: string
+  } | null
+}
+
+export type UpdateUserProfileInput = {
+  displayName?: string
+  avatarUrl?: string | null
+  bio?: string | null
+}
+
+export type TournamentModerator = {
+  id: string
+  displayName: string
+  email: string
+}
+
+export type LobbyPlayer = {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  eloTournament: number
+  role: "host" | "mod" | "player"
+  joinedAt: string
+}
+
+export type LobbyState = {
+  tournamentId: string
+  players: LobbyPlayer[]
+  playerCount: number
+  maxPlayers: number
+}
+
+export type LobbyCountUpdate = {
+  tournamentId: string
+  playerCount: number
+  maxPlayers: number
+}
+
+export type TournamentCatalogUpdate =
+  | { action: "created"; tournament: TournamentItem }
+  | { action: "updated"; tournament: TournamentItem }
+  | { action: "removed"; tournamentId: string }
+
+export type TournamentItem = {
+  id: string
+  name: string
+  type: "1v1 Match" | "Free For All"
+  date: string
+  status: "Open" | "Soon" | "Live" | "Ended"
+  players: number
+  maxPlayers: number
+  duration: string
+  durationMinutes: number
+  description: string
+  visibility: "public" | "private"
+  startMode: "manual" | "auto"
+  host: string
+  hostId: string
+  passwordProtected?: boolean
+  moderators: TournamentModerator[]
+  scheduledAt: string
+  liveStartedAt?: string | null
+  pausedAt?: string | null
+  resumeAt?: string | null
+  pausedTotalMs?: number
+  endedAt?: string | null
+  viewerRole?: "host" | "player" | "mod" | null
+}
+
+export type TournamentLiveState = {
+  tournamentId: string
+  status: "Open" | "Soon" | "Live" | "Ended"
+  liveStartedAt: string | null
+  pausedAt: string | null
+  resumeAt: string | null
+  pausedTotalMs: number
+  endedAt: string | null
+  durationMinutes: number
+}
+
+export type TournamentTimerFields = {
+  status: TournamentItem["status"]
+  durationMinutes: number
+  liveStartedAt?: string | null
+  pausedAt?: string | null
+  resumeAt?: string | null
+  pausedTotalMs?: number
+  endedAt?: string | null
+}
+
+export type CreateTournamentInput = {
+  name: string
+  description?: string
+  type?: "ffa" | "1v1"
+  schedule: "now" | "later"
+  startsAt?: string
+  visibility: "public" | "private"
+  password?: string
+  startMode: "manual" | "auto"
+  maxPlayers: number
+  durationMinutes?: number
+  moderatorEmails?: string[]
+}
+
+export type UpdateTournamentInput = {
+  name?: string
+  description?: string
+  type?: "ffa" | "1v1"
+  schedule?: "now" | "later"
+  startsAt?: string
+  visibility?: "public" | "private"
+  password?: string | null
+  startMode?: "manual" | "auto"
+  maxPlayers?: number
+  durationMinutes?: number
+  moderatorEmails?: string[]
+}
+
+export type StandingsEntry = {
+  rank: number
+  userId: string
+  displayName: string
+  solved: number
+  penalty: number
+  score: number
+}
+
+export type TournamentStandings = {
+  tournamentId: string
+  updatedAt: string
+  entries: StandingsEntry[]
+}
+
+export type PlayLanguage = "python" | "javascript" | "cpp"
+
+export type TournamentPlayerSession = {
+  activeProblemId: string | null
+  language: PlayLanguage
+  updatedAt: string
+}
+
+export type TournamentWorkspaceEntry = {
+  problemId: string
+  sourceCode: string
+  updatedAt: string
+}
+
+export type MyTournamentWorkspace = {
+  session: TournamentPlayerSession
+  entries: TournamentWorkspaceEntry[]
+}
+
+export type PlayerWorkspaceView = {
+  userId: string
+  displayName: string
+  session: TournamentPlayerSession
+  problemId: string
+  sourceCode: string
+  updatedAt: string
+}
+
+export type TournamentWorkspaceUpdate = {
+  tournamentId: string
+  userId: string
+  displayName: string
+  activeProblemId: string | null
+  language: PlayLanguage
+  problemId: string
+  sourceCode: string
+  updatedAt: string
+}
+
+export type SubmissionCaseResult = {
+  index: number
+  passed: boolean
+  expected?: string
+  actual?: string
+  error?: string
+}
+
+export type SubmissionResult = {
+  status: "accepted" | "wrong_answer" | "runtime_error" | "timeout" | "compile_error" | "unsupported"
+  cases: SubmissionCaseResult[]
+  message?: string
+  standings?: TournamentStandings
+  matchEnded?: VersusMatchEnded
+}
+
+export type VersusDifficulty = "easy" | "medium" | "hard"
+
+export type VersusPlayerCard = {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  elo1v1: number
+  peakElo1v1: number
+  winRate: number
+  matchCount: number
+  winStreak1v1: number
+  wins: number
+  losses: number
+  draws: number
+}
+
+export type VersusMatch = {
+  id: string
+  status: "lobby" | "live" | "ended" | "aborted"
+  difficulty: VersusDifficulty
+  durationMinutes: number
+  lobbyEndsAt: string
+  startedAt: string | null
+  endedAt: string | null
+  winnerId: string | null
+  youAre: "a" | "b"
+  playerA: VersusPlayerCard
+  playerB: VersusPlayerCard
+  playerAEloBefore: number
+  playerBEloBefore: number
+  playerAEloAfter: number | null
+  playerBEloAfter: number | null
+  problem: ProblemDetail | null
+}
+
+export type VersusMatchEnded = {
+  match: VersusMatch
+  result: "win" | "loss" | "draw" | "abort"
+  yourEloDelta: number
+}
+
+export type VersusSubmissionResult = SubmissionResult & {
+  matchEnded?: VersusMatchEnded
+}

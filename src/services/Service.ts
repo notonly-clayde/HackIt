@@ -1,26 +1,29 @@
 export default class Service {
-    
-    async handle<T>(fn: () => Promise<T>): Promise<[T | null, string | undefined]> {
-        try {
-            const res = await fn()
-    
-            return [res, undefined]
-        } catch (err) {
-            return [null,  err instanceof Error ? err.message : "Unknown error"]
-        }
+  async handle<T>(fn: () => Promise<T>): Promise<[T | null, string | undefined]> {
+    try {
+      const res = await fn()
+      return [res, undefined]
+    } catch (err) {
+      return [null, err instanceof Error ? err.message : "Unknown error"]
     }
+  }
 
-    async request<T = unknown>(uri: string, options?: RequestInit): Promise<[T | null, string | undefined]> {
-        return this.handle<T>(async () => {
-            const res = await fetch(uri, options)
-            const data = await res.json()
+  async request<T = unknown>(uri: string, options?: RequestInit): Promise<[T | null, string | undefined]> {
+    return this.handle<T>(async () => {
+      const res = await fetch(uri, options)
 
-            if (!res.ok) {
-                throw new Error(data.error)
-            }
+      if (res.status === 204) {
+        return null as T
+      }
 
-            return data
-        })
-    }
+      const text = await res.text()
+      const data = text ? JSON.parse(text) : null
 
+      if (!res.ok) {
+        throw new Error(typeof data?.error === "string" ? data.error : "Request failed")
+      }
+
+      return data
+    })
+  }
 }

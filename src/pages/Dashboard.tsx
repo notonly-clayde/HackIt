@@ -1,108 +1,147 @@
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
+import { HiOutlineBolt, HiOutlineEye, HiOutlineFlag, HiOutlineTrophy } from "react-icons/hi2"
 import { useAuth } from "../contexts/AuthContext"
-import Nav from "../components/Dashboard/Nav"
+import Card from "../components/ui/Card"
+import Badge from "../components/ui/Badge"
+import Button from "../components/ui/Button"
+import SectionHeader from "../components/ui/SectionHeader"
+import EmptyState from "../components/ui/EmptyState"
+import QueryLoadingCard from "../components/ui/QueryLoadingCard"
+import RefreshingIndicator from "../components/ui/RefreshingIndicator"
+import { useTournamentIndexUpdates } from "../hooks/useTournamentIndexUpdates"
+import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
+import { useDashboardTournaments, prefetchTournamentList } from "../hooks/queries/useTournamentQueries"
+import { prefetchProblemCatalog } from "../hooks/queries/useProblemQueries"
+
+const dashboardIndexOptions = { mode: "dashboard" as const }
 
 const quickActions = [
   {
     title: "Tournaments",
-    description: "Browse and join upcoming programming contests with live rankings.",
+    description: "Browse open lobbies, join free-for-alls, or host your own event with mods and spectators.",
     to: "/tournament",
     cta: "Browse Tournaments",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0116.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.003 6.003 0 01-4.02 5.228m4.02-5.228a6.003 6.003 0 00-4.02-5.228" />
-      </svg>
-    ),
+    icon: <HiOutlineTrophy className="h-7 w-7" />,
   },
   {
     title: "Versus",
-    description: "Create or join a private room and battle a friend in a 1-on-1 coding duel.",
+    description: "Find a 1v1 match or create a private room. Wins raise your 1v1 ELO; losses lower it.",
     to: "/versus",
     cta: "Start a Battle",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
-      </svg>
-    ),
+    icon: <HiOutlineBolt className="h-7 w-7" />,
   },
 ]
 
-const upcomingTournaments = [
-  { name: "Weekly Code Sprint", type: "Free For All", date: "Sat, Jul 26 · 2:00 PM", status: "Open" },
-  { name: "Beginner Showdown", type: "1v1 Match", date: "Sun, Jul 27 · 6:00 PM", status: "Open" },
-  { name: "Algo Masters Cup", type: "Free For All", date: "Fri, Aug 1 · 7:00 PM", status: "Soon" },
-]
+const statusTone = {
+  Open: "open" as const,
+  Soon: "soon" as const,
+  Live: "live" as const,
+  Ended: "ended" as const,
+}
 
 const Dashboard = () => {
-  const { user } = useAuth()
-  const displayName = user?.name?.trim() || user?.email?.split("@")[0] || "Coder"
+  const { user, profile, token } = useAuth()
+  const queryClient = useQueryClient()
+  const displayName =
+    profile?.displayName?.trim() ||
+    user?.name?.trim() ||
+    user?.email?.split("@")[0] ||
+    "Coder"
+
+  const { upcoming, isLoading, isFetching, error } = useDashboardTournaments()
+  useQueryErrorToast(error)
+
+  useTournamentIndexUpdates(token, dashboardIndexOptions)
+
+  useEffect(() => {
+    void prefetchTournamentList(queryClient)
+    void prefetchProblemCatalog(queryClient, token)
+  }, [queryClient, token])
 
   return (
-    <div className="bg-accent-gradient min-h-screen pb-16">
-      <Nav />
+    <div className="page-container mt-8 sm:mt-10">
+      <SectionHeader
+        kicker="Ops desk"
+        title={`Welcome back, ${displayName}`}
+        description="Jump into a tournament lobby or challenge someone to a versus battle."
+        action={
+          <Link to="/tournament/new">
+            <Button variant="primary">
+              <HiOutlineFlag className="h-4 w-4" />
+              Host tournament
+            </Button>
+          </Link>
+        }
+        className="mb-8 sm:mb-10"
+      />
 
-      <div className="page-container mt-6 sm:mt-10">
-        <div className="mb-8 sm:mb-12">
-          <h1 className="font-bold text-2xl sm:text-3xl lg:text-[2.75rem] bg-gradient-to-b from-highlight to-secondary bg-clip-text text-transparent leading-tight">
-            Welcome back, {displayName}!
-          </h1>
-          <p className="text-midtone text-sm sm:text-base lg:text-lg mt-2">
-            Ready to compete? Jump into a tournament or challenge someone to a versus battle.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14">
-          {quickActions.map((action) => (
-            <Link
-              key={action.title}
-              to={action.to}
-              className="group bg-primary/50 border border-highlight/20 rounded-2xl p-6 sm:p-8 hover:border-highlight/60 hover:bg-primary/70 transition-all"
-            >
-              <div className="text-highlight mb-4">{action.icon}</div>
-              <h2 className="text-accent font-bold text-2xl mb-2">{action.title}</h2>
-              <p className="text-midtone mb-6 leading-relaxed">{action.description}</p>
-              <span className="inline-block bg-highlight text-primary font-semibold px-5 py-2 rounded-xl group-hover:bg-midtone transition-colors">
-                {action.cta}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 mb-12">
+        {quickActions.map((action) => (
+          <Link key={action.title} to={action.to} className="group">
+            <Card hover className="p-6 sm:p-7 h-full">
+              <div className="ui-icon-box mb-4 !h-12 !w-12">{action.icon}</div>
+              <h2 className="text-accent font-bold text-xl mb-2 tracking-tight">{action.title}</h2>
+              <p className="text-muted text-sm leading-relaxed mb-5">{action.description}</p>
+              <span className="inline-flex text-sm font-semibold text-highlight group-hover:underline">
+                {action.cta} →
               </span>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between mb-5 border-l-2 border-highlight/40 pl-3">
+        <h2 className="text-accent font-bold text-xl sm:text-2xl tracking-tight">Match board</h2>
+        <div className="flex items-center gap-3">
+          <RefreshingIndicator show={isFetching && !isLoading} />
+          <Link to="/tournament" className="text-highlight text-sm font-medium hover:underline">
+            View all
+          </Link>
+        </div>
+      </div>
+
+      {isLoading && upcoming.length === 0 ? (
+        <QueryLoadingCard message="Loading match board…" />
+      ) : error ? (
+        <EmptyState title="Could not load tournaments" description={error.message} />
+      ) : upcoming.length === 0 ? (
+        <EmptyState
+          title="No open events yet"
+          description="Host a tournament or check back later."
+          action={
+            <Link to="/tournament/new">
+              <Button variant="primary">
+                <HiOutlineFlag className="h-4 w-4" />
+                Host tournament
+              </Button>
+            </Link>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {upcoming.map((tournament) => (
+            <Link key={tournament.id} to={`/tournament/${tournament.id}`}>
+              <Card hover className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-6 py-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-accent font-semibold truncate">{tournament.name}</h3>
+                    <Badge tone={statusTone[tournament.status]}>{tournament.status}</Badge>
+                  </div>
+                  <p className="text-muted text-sm mt-1">
+                    {tournament.type} · {tournament.date} · {tournament.players}/{tournament.maxPlayers} players
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-highlight text-sm font-medium shrink-0">
+                  <HiOutlineEye className="h-4 w-4" />
+                  Inspect
+                </span>
+              </Card>
             </Link>
           ))}
         </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-accent font-bold text-2xl">Upcoming Tournaments</h2>
-            <Link to="/tournament" className="text-highlight text-sm hover:underline">
-              View all
-            </Link>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {upcomingTournaments.map((tournament) => (
-              <div
-                key={tournament.name}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-secondary/30 border border-highlight/15 rounded-xl px-6 py-4"
-              >
-                <div>
-                  <h3 className="text-accent font-semibold">{tournament.name}</h3>
-                  <p className="text-midtone text-sm mt-0.5">
-                    {tournament.type} · {tournament.date}
-                  </p>
-                </div>
-                <span
-                  className={`self-start sm:self-auto text-xs font-semibold px-3 py-1 rounded-full ${
-                    tournament.status === "Open"
-                      ? "bg-highlight/20 text-highlight"
-                      : "bg-midtone/20 text-midtone"
-                  }`}
-                >
-                  {tournament.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
