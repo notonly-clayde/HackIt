@@ -2,22 +2,54 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import PlayArena from "../components/play/PlayArena"
 import Button from "../components/ui/Button"
-import Card from "../components/ui/Card"
 import Modal from "../components/ui/Modal"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
+import VersusMatchResults from "../components/play/VersusMatchResults"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { useForfeitLeaveGuard } from "../hooks/useForfeitLeaveGuard"
 import { useTournamentTimer } from "../hooks/useTournamentTimer"
 import VersusService from "../services/VersusService"
 import {
+  leaveVersusResults,
+  offerVersusDraw,
+  offerVersusRematch,
+  respondVersusDraw,
+  subscribeVersusDrawDeclined,
+  subscribeVersusDrawOffered,
   subscribeVersusEnded,
+  subscribeVersusMatchFound,
+  subscribeVersusRematchOffered,
+  subscribeVersusRematchUnavailable,
   subscribeVersusStarted,
   subscribeVersusState,
   watchVersusMatch,
 } from "../services/socket"
-import type { VersusMatch, VersusMatchEnded } from "../types/api"
+import type { VersusEndedReason, VersusMatch, VersusMatchEnded } from "../types/api"
 import type { TournamentTimerFields } from "../types/api"
+
+function endedFromMatch(data: VersusMatch): VersusMatchEnded {
+  const isA = data.youAre === "a"
+  const before = isA ? data.playerAEloBefore : data.playerBEloBefore
+  const after = isA ? (data.playerAEloAfter ?? before) : (data.playerBEloAfter ?? before)
+  const endedReason: VersusEndedReason =
+    data.endedReason ??
+    (data.status === "aborted" ? "abort" : data.winnerId ? "first_ac" : "timeout")
+  return {
+    match: data,
+    result:
+      data.status === "aborted"
+        ? "abort"
+        : data.winnerId === (isA ? data.playerA.id : data.playerB.id)
+          ? "win"
+          : data.winnerId
+            ? "loss"
+            : "draw",
+    yourEloDelta: data.status === "aborted" ? 0 : after - before,
+    endedReason,
+    solveElapsedMinutes: data.solveElapsedMinutes,
+  }
+}
 
 const VersusPlay = () => {
   const { matchId } = useParams()
@@ -28,6 +60,8 @@ const VersusPlay = () => {
   const [loading, setLoading] = useState(true)
   const [ended, setEnded] = useState<VersusMatchEnded | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const [drawRole, setDrawRole] = useState<"none" | "offered" | "received">("none")
+  const [rematchState, setRematchState] = useState<"idle" | "waiting" | "incoming" | "gone">("idle")
   const redirectedRef = useRef(false)
 
   const matchActive = Boolean(match && match.status === "live" && !ended)
@@ -36,6 +70,7 @@ const VersusPlay = () => {
   const applyEnded = useCallback((event: VersusMatchEnded) => {
     setEnded(event)
     setMatch(event.match)
+    setDrawRole("none")
   }, [])
 
   useEffect(() => {
@@ -62,24 +97,7 @@ const VersusPlay = () => {
       }
 
       if (data.status === "ended" || data.status === "aborted") {
-        applyEnded({
-          match: data,
-          result:
-            data.status === "aborted"
-              ? "abort"
-              : data.winnerId === (data.youAre === "a" ? data.playerA.id : data.playerB.id)
-                ? "win"
-                : data.winnerId
-                  ? "loss"
-                  : "draw",
-          yourEloDelta:
-            data.status === "aborted"
-              ? 0
-              : (data.youAre === "a"
-                  ? (data.playerAEloAfter ?? data.playerAEloBefore)
-                  : (data.playerBEloAfter ?? data.playerBEloBefore)) -
-                (data.youAre === "a" ? data.playerAEloBefore : data.playerBEloBefore),
-        })
+        applyEnded(endedFromMatch(data))
       }
     })
 
@@ -111,13 +129,38 @@ const VersusPlay = () => {
       if (event.match.id !== matchId) return
       applyEnded(event)
     })
+    const unsubFound = subscribeVersusMatchFound(token, (found) => {
+      navigate(`/versus/lobby/${found.id}`, { replace: true })
+    })
+    const unsubDrawOffered = subscribeVersusDrawOffered(token, (payload) => {
+      if (payload.matchId !== matchId) return
+      setDrawRole("received")
+    })
+    const unsubDrawDeclined = subscribeVersusDrawDeclined(token, (payload) => {
+      if (payload.matchId !== matchId) return
+      setDrawRole("none")
+      toast.error("Opponent declined a draw")
+    })
+    const unsubRematchOffered = subscribeVersusRematchOffered(token, (payload) => {
+      if (payload.matchId !== matchId) return
+      setRematchState("incoming")
+    })
+    const unsubRematchGone = subscribeVersusRematchUnavailable(token, (payload) => {
+      if (payload.matchId !== matchId) return
+      setRematchState("gone")
+    })
 
     return () => {
       unsubState()
       unsubStarted()
       unsubEnded()
+      unsubFound()
+      unsubDrawOffered()
+      unsubDrawDeclined()
+      unsubRematchOffered()
+      unsubRematchGone()
     }
-  }, [token, matchId, navigate, applyEnded])
+  }, [token, matchId, navigate, applyEnded, toast])
 
   const opponent = match
     ? match.youAre === "a"
@@ -169,12 +212,36 @@ const VersusPlay = () => {
     void forfeitMatch()
   }
 
-  const handleMatchEnded = useCallback(
-    (event: VersusMatchEnded) => {
-      applyEnded(event)
-    },
-    [applyEnded],
-  )
+  const handleOfferDraw = async () => {
+    if (!token || !matchId) return
+    const ack = await offerVersusDraw(token, matchId)
+    if (!ack.ok) {
+      toast.error(ack.error)
+      return
+    }
+    setDrawRole("offered")
+  }
+
+  const handleDrawRespond = async (accept: boolean) => {
+    if (!token || !matchId) return
+    const ack = await respondVersusDraw(token, matchId, accept)
+    if (!ack.ok) {
+      toast.error(ack.error)
+      return
+    }
+    setDrawRole("none")
+  }
+
+  const handleRematch = async () => {
+    if (!token || !matchId) return
+    const ack = await offerVersusRematch(token, matchId)
+    if (!ack.ok) {
+      toast.error(ack.error)
+      if (ack.error.toLowerCase().includes("left")) setRematchState("gone")
+      return
+    }
+    if (!ack.accepted) setRematchState("waiting")
+  }
 
   if (loading || !match) {
     return (
@@ -185,6 +252,29 @@ const VersusPlay = () => {
   }
 
   const problems = match.problem ? [match.problem] : []
+
+  const drawActions =
+    matchActive ? (
+      drawRole === "received" ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted hidden sm:inline">Draw offered</span>
+          <Button variant="secondary" className="!py-1.5 !px-3 text-sm" onClick={() => void handleDrawRespond(false)}>
+            Decline
+          </Button>
+          <Button variant="primary" className="!py-1.5 !px-3 text-sm" onClick={() => void handleDrawRespond(true)}>
+            Accept draw
+          </Button>
+        </div>
+      ) : drawRole === "offered" ? (
+        <Button variant="secondary" className="!py-1.5 !px-3 text-sm" onClick={() => void handleDrawRespond(false)}>
+          Cancel offer
+        </Button>
+      ) : (
+        <Button variant="secondary" className="!py-1.5 !px-3 text-sm" onClick={() => void handleOfferDraw()}>
+          Offer draw
+        </Button>
+      )
+    ) : null
 
   return (
     <>
@@ -204,9 +294,16 @@ const VersusPlay = () => {
         }
         authToken={token}
         matchId={match.id}
-        onMatchEnded={handleMatchEnded}
+        onMatchEnded={applyEnded}
         onLeave={handleLeaveClick}
+        matchActions={drawActions}
       />
+
+      {drawRole === "offered" && matchActive ? (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 ui-card px-4 py-2 text-sm text-accent">
+          Waiting for opponent to accept a draw…
+        </div>
+      ) : null}
 
       <Modal
         open={confirmOpen}
@@ -228,33 +325,30 @@ const VersusPlay = () => {
       />
 
       {ended && (
-        <div className="fixed inset-0 z-50 bg-primary/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="max-w-md w-full p-6 sm:p-8 text-center">
-            <p className="ui-kicker mb-2 justify-center">
-              {ended.result === "abort" ? "Match aborted" : "Match ended"}
-            </p>
-            <h2 className="text-accent font-bold text-2xl mb-2 capitalize">
-              {ended.result === "abort" ? "Aborted" : ended.result}
-            </h2>
-            {ended.result === "abort" ? (
-              <p className="text-muted text-sm mb-6">
-                The match was cancelled before it started. No ELO change.
-              </p>
-            ) : (
-              <p className="text-muted text-sm mb-6">
-                ELO {ended.yourEloDelta >= 0 ? "+" : ""}
-                {ended.yourEloDelta}
-              </p>
-            )}
-            <Button
-              variant="primary"
-              className="w-full"
-              onClick={() => navigate("/versus", { replace: true })}
-            >
-              Back to Versus
-            </Button>
-          </Card>
-        </div>
+        <VersusMatchResults
+          ended={ended}
+          rematchBusy={rematchState === "waiting"}
+          rematchDisabled={rematchState === "gone"}
+          rematchLabel={
+            rematchState === "gone"
+              ? "Opponent left"
+              : rematchState === "incoming"
+                ? "Accept rematch"
+                : rematchState === "waiting"
+                  ? "Waiting…"
+                  : "Rematch"
+          }
+          onRematch={() => void handleRematch()}
+          onFindMatch={() => {
+            if (token) void leaveVersusResults(token, ended.match.id)
+            navigate(`/versus?difficulty=${ended.match.difficulty}`, { replace: true })
+          }}
+          onReview={() => navigate(`/versus/review/${ended.match.id}`)}
+          onBack={() => {
+            if (token) void leaveVersusResults(token, ended.match.id)
+            navigate("/versus", { replace: true })
+          }}
+        />
       )}
     </>
   )

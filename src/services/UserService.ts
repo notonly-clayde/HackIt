@@ -1,6 +1,7 @@
 import ApiService from "./ApiService"
 import type {
   CreateReportInput,
+  MatchHistoryItem,
   PublicUserProfile,
   UpdateUserProfileInput,
   UserProfile,
@@ -20,6 +21,13 @@ class UserService extends ApiService {
 
   async getPublic(token: string | null, id: string) {
     return this.requestWithAuth<PublicUserProfile>(`/api/users/${id}`, token)
+  }
+
+  async listMatches(token: string | null, userId: string, limit = 20) {
+    return this.requestWithAuth<MatchHistoryItem[]>(
+      `/api/users/${userId}/matches?limit=${limit}`,
+      token,
+    )
   }
 
   async updateMe(token: string | null, input: UpdateUserProfileInput) {

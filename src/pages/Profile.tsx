@@ -7,8 +7,8 @@ import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
 import Modal from "../components/ui/Modal"
 import Field from "../components/ui/Field"
-import EmptyState from "../components/ui/EmptyState"
 import UserService from "../services/UserService"
+import MatchHistoryList from "../components/profile/MatchHistoryList"
 import { isEmailVerifiedForAccess } from "../lib/emailVerification"
 
 const Profile = () => {
@@ -138,17 +138,14 @@ const Profile = () => {
           ))}
         </section>
 
-        <section className="mt-10 sm:mt-12">
-          <div className="flex items-center justify-between mb-5 border-l-2 border-highlight/40 pl-3">
-            <h2 className="text-accent font-bold text-xl sm:text-2xl tracking-tight">Match history</h2>
-            <span className="text-muted text-sm tabular-nums">0 recent</span>
-          </div>
-
-          <EmptyState
-            title="No matches yet"
-            description="Your versus and tournament results will show up here after you compete."
+        {profile?.id ? (
+          <MatchHistoryList
+            userId={profile.id}
+            token={token}
+            canReview
+            emptyDescription="1v1 results will show up here after you compete."
           />
-        </section>
+        ) : null}
 
       <Modal
         open={editOpen}

@@ -141,6 +141,10 @@ const VersusLobby = () => {
                   ? (data.playerAEloAfter ?? data.playerAEloBefore)
                   : (data.playerBEloAfter ?? data.playerBEloBefore)) -
                 (data.youAre === "a" ? data.playerAEloBefore : data.playerBEloBefore),
+          endedReason:
+            data.endedReason ??
+            (data.status === "aborted" ? "abort" : data.winnerId ? "first_ac" : "timeout"),
+          solveElapsedMinutes: data.solveElapsedMinutes,
         })
       }
     })

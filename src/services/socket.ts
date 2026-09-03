@@ -426,6 +426,11 @@ export async function watchVersusMatch(token: string, matchId: string): Promise<
   })
 }
 
+export async function leaveVersusResults(token: string, matchId: string): Promise<void> {
+  const client = await ensureLobbySocketConnected(token)
+  client.emit("versus:results-leave", { matchId })
+}
+
 export function subscribeVersusMatchFound(
   token: string,
   onFound: (match: VersusMatch) => void,
@@ -503,3 +508,81 @@ export function subscribeVersusEnded(
     client.off("versus:ended", handle)
   }
 }
+
+export type VersusAck = { ok: true; accepted?: boolean } | { ok: false; error: string }
+
+export async function offerVersusRematch(token: string, matchId: string): Promise<VersusAck> {
+  const client = await ensureLobbySocketConnected(token)
+  return new Promise((resolve) => {
+    client.emit("versus:rematch", { matchId }, (ack: VersusAck) => {
+      resolve(ack ?? { ok: false, error: "No response from server" })
+    })
+  })
+}
+
+export async function offerVersusDraw(token: string, matchId: string): Promise<VersusAck> {
+  const client = await ensureLobbySocketConnected(token)
+  return new Promise((resolve) => {
+    client.emit("versus:draw-offer", { matchId }, (ack: VersusAck) => {
+      resolve(ack ?? { ok: false, error: "No response from server" })
+    })
+  })
+}
+
+export async function respondVersusDraw(
+  token: string,
+  matchId: string,
+  accept: boolean,
+): Promise<VersusAck> {
+  const client = await ensureLobbySocketConnected(token)
+  return new Promise((resolve) => {
+    client.emit("versus:draw-respond", { matchId, accept }, (ack: VersusAck) => {
+      resolve(ack ?? { ok: false, error: "No response from server" })
+    })
+  })
+}
+
+export function subscribeVersusRematchOffered(
+  token: string,
+  onOffered: (payload: { matchId: string }) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (payload: { matchId: string }) => onOffered(payload)
+  client.on("versus:rematch-offered", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("versus:rematch-offered", handle)
+}
+
+export function subscribeVersusRematchUnavailable(
+  token: string,
+  onUnavailable: (payload: { matchId: string }) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (payload: { matchId: string }) => onUnavailable(payload)
+  client.on("versus:rematch-unavailable", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("versus:rematch-unavailable", handle)
+}
+
+export function subscribeVersusDrawOffered(
+  token: string,
+  onOffered: (payload: { matchId: string; fromUserId: string }) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (payload: { matchId: string; fromUserId: string }) => onOffered(payload)
+  client.on("versus:draw-offered", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("versus:draw-offered", handle)
+}
+
+export function subscribeVersusDrawDeclined(
+  token: string,
+  onDeclined: (payload: { matchId: string }) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (payload: { matchId: string }) => onDeclined(payload)
+  client.on("versus:draw-declined", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("versus:draw-declined", handle)
+}
+

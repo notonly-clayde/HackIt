@@ -2,6 +2,7 @@ import { Link } from "react-router-dom"
 import Card from "../ui/Card"
 import Badge from "../ui/Badge"
 import EmptyState from "../ui/EmptyState"
+import ProblemTagChips from "./ProblemTagChips"
 import type { TournamentProblemItem } from "../../types/api"
 
 type PreviewContext = {
@@ -76,6 +77,7 @@ const TournamentProblemList = ({
                       <span className="ml-1">· Author only</span>
                     )}
                   </p>
+                  <ProblemTagChips tags={entry.problem.tags} className="mt-1.5" max={3} />
                 </div>
                 <Badge tone={visibilityTone[entry.problem.visibility]}>{entry.problem.visibility}</Badge>
               </>

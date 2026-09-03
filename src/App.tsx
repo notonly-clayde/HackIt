@@ -43,6 +43,7 @@ const TournamentHostPage = lazy(() => import("./pages/TournamentHostPage"))
 const TournamentSpectate = lazy(() => import("./pages/TournamentSpectate"))
 const VersusPlay = lazy(() => import("./pages/VersusPlay"))
 const VersusLobby = lazy(() => import("./pages/VersusLobby"))
+const VersusReview = lazy(() => import("./pages/VersusReview"))
 const ProblemPractice = lazy(() => import("./pages/ProblemPractice"))
 
 const LazyFallback = () => (
@@ -89,6 +90,14 @@ function App() {
                 element={
                   <Suspense fallback={<LazyFallback />}>
                     <VersusPlay />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="versus/review/:matchId"
+                element={
+                  <Suspense fallback={<LazyFallback />}>
+                    <VersusReview />
                   </Suspense>
                 }
               />

@@ -11,6 +11,8 @@ export type HudSoundCue =
   | "link"
   | "glide"
   | "urgency"
+  | "victory"
+  | "defeat"
 
 const THROTTLE_MS: Partial<Record<HudSoundCue, number>> = {
   tap: 80,
@@ -168,6 +170,16 @@ function scheduleCue(ctx: AudioContext, master: GainNode, cue: HudSoundCue, star
       playTone(ctx, master, { frequency: 880, type: "sawtooth", gain: 0.075, attack: 0.002, decay: 0.11, duration: 0.12 }, startAt)
       playTone(ctx, master, { frequency: 1180, type: "square", gain: 0.06, attack: 0.003, decay: 0.13, duration: 0.14 }, startAt + 0.015)
       playNoiseBurst(ctx, master, startAt, 0.07, 0.03)
+      break
+    case "victory":
+      playTone(ctx, master, { frequency: 523, type: "sine", gain: 0.06, attack: 0.006, decay: 0.12, duration: 0.14 }, startAt)
+      playTone(ctx, master, { frequency: 659, type: "sine", gain: 0.055, attack: 0.008, decay: 0.14, duration: 0.16 }, startAt + 0.08)
+      playTone(ctx, master, { frequency: 784, type: "sine", gain: 0.05, attack: 0.01, decay: 0.2, duration: 0.22 }, startAt + 0.16)
+      break
+    case "defeat":
+      playTone(ctx, master, { frequency: 220, type: "sawtooth", gain: 0.055, attack: 0.008, decay: 0.16, duration: 0.18 }, startAt)
+      playTone(ctx, master, { frequency: 165, type: "triangle", gain: 0.045, attack: 0.01, decay: 0.22, duration: 0.24 }, startAt + 0.09)
+      playNoiseBurst(ctx, master, startAt + 0.04, 0.08, 0.025)
       break
     default:
       break

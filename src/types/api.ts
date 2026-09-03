@@ -124,6 +124,7 @@ export type ProblemSummary = {
   author: string
   timeLimitMs: number
   memoryLimitMb: number
+  tags: string[]
   createdAt: string
   reviewNote?: string | null
 }
@@ -146,6 +147,7 @@ export type CreateProblemInput = {
   starterPython?: string | null
   starterJs?: string | null
   starterCpp?: string | null
+  tags: string[]
   testCases: TestCaseInput[]
 }
 
@@ -401,6 +403,7 @@ export type VersusMatch = {
   startedAt: string | null
   endedAt: string | null
   winnerId: string | null
+  endedReason: VersusEndedReason | null
   youAre: "a" | "b"
   playerA: VersusPlayerCard
   playerB: VersusPlayerCard
@@ -409,14 +412,54 @@ export type VersusMatch = {
   playerAEloAfter: number | null
   playerBEloAfter: number | null
   problem: ProblemDetail | null
+  solveElapsedMinutes: number | null
 }
+
+export type VersusEndedReason = "first_ac" | "timeout" | "forfeit" | "agreed_draw" | "abort"
 
 export type VersusMatchEnded = {
   match: VersusMatch
   result: "win" | "loss" | "draw" | "abort"
   yourEloDelta: number
+  endedReason: VersusEndedReason
+  solveElapsedMinutes: number | null
+}
+
+export type VersusReviewSubmission = {
+  userId: string
+  displayName: string
+  language: string
+  sourceCode: string
+  verdict: string
+  effectiveElapsedMinutes: number
+  submittedAt: string
+}
+
+export type VersusReview = {
+  matchId: string
+  problem: ProblemDetail
+  you: VersusReviewSubmission | null
+  opponent: VersusReviewSubmission | null
 }
 
 export type VersusSubmissionResult = SubmissionResult & {
   matchEnded?: VersusMatchEnded
+}
+
+export type MatchHistoryOpponent = {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export type MatchHistoryItem = {
+  matchId: string
+  endedAt: string
+  difficulty: VersusDifficulty
+  endedReason: VersusEndedReason | null
+  result: "win" | "loss" | "draw"
+  eloBefore: number
+  eloAfter: number
+  eloDelta: number
+  opponent: MatchHistoryOpponent
 }

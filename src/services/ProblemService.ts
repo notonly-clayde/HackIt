@@ -10,6 +10,7 @@ import type {
 type ProblemListQuery = {
   search?: string
   difficulty?: ProblemDifficulty
+  tag?: string
 }
 
 class ProblemService extends ApiService {
@@ -17,6 +18,7 @@ class ProblemService extends ApiService {
     const params = new URLSearchParams()
     if (query.search) params.set("search", query.search)
     if (query.difficulty) params.set("difficulty", query.difficulty)
+    if (query.tag) params.set("tag", query.tag)
     const qs = params.toString()
 
     return this.requestWithAuth<ProblemDetail[]>(`/api/problems${qs ? `?${qs}` : ""}`, token)

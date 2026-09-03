@@ -247,7 +247,8 @@ const TournamentProblemSet = ({
             <option value="">Select a problem…</option>
             {available.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.title} ({p.difficulty})
+                {p.title} ({p.difficulty}
+                {p.tags?.length ? ` · ${p.tags.slice(0, 2).join(", ")}` : ""})
               </option>
             ))}
           </SelectField>

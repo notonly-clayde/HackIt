@@ -8,6 +8,7 @@ import EmptyState from "../components/ui/EmptyState"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import ProblemStatement from "../components/problems/ProblemStatement"
+import ProblemTagChips from "../components/problems/ProblemTagChips"
 import SampleTestCases from "../components/problems/SampleTestCases"
 import ReportButton from "../components/moderation/ReportButton"
 import { useAuth } from "../contexts/AuthContext"
@@ -146,6 +147,7 @@ const ProblemPreview = () => {
             <Badge tone="neutral">{problem.timeLimitMs} ms</Badge>
             <Badge tone="neutral">{problem.memoryLimitMb} MB</Badge>
           </div>
+          <ProblemTagChips tags={problem.tags} className="mt-3" />
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">

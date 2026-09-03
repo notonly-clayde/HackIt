@@ -4,6 +4,7 @@ import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
 import Badge from "../components/ui/Badge"
 import EmptyState from "../components/ui/EmptyState"
+import ProblemTagChips from "../components/problems/ProblemTagChips"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import { useAuth } from "../contexts/AuthContext"
@@ -48,6 +49,7 @@ const AdminProblems = () => {
                     <Badge tone="neutral">{problem.difficulty}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted">By {problem.author}</p>
+                  <ProblemTagChips tags={problem.tags} className="mt-2" max={4} />
                   <p className="mt-2 line-clamp-2 text-sm text-muted">{problem.statement}</p>
                 </div>
                 <Link to={`/admin/problems/${problem.id}`} className="shrink-0">

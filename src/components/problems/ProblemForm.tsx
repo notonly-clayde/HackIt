@@ -2,6 +2,7 @@ import { useState } from "react"
 import Button from "../ui/Button"
 import Field, { SelectField, TextAreaField } from "../ui/Field"
 import { useToast } from "../../contexts/ToastContext"
+import { PROBLEM_TAG_OPTIONS, type ProblemTagSlug } from "../../lib/problemTags"
 import StatementMarkdownEditor from "./StatementMarkdownEditor"
 import type { CreateProblemInput, ProblemDifficulty, TestCaseInput } from "../../types/api"
 
@@ -19,6 +20,8 @@ const emptyTest = (isSample: boolean): TestCaseInput => ({
   order: 0,
 })
 
+const MAX_TAGS = 5
+
 const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormProps) => {
   const toast = useToast()
   const [title, setTitle] = useState(initial?.title ?? "")
@@ -29,6 +32,11 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
   const [starterPython, setStarterPython] = useState(initial?.starterPython ?? "")
   const [starterJs, setStarterJs] = useState(initial?.starterJs ?? "")
   const [starterCpp, setStarterCpp] = useState(initial?.starterCpp ?? "")
+  const [tags, setTags] = useState<ProblemTagSlug[]>(
+    (initial?.tags ?? []).filter((tag): tag is ProblemTagSlug =>
+      PROBLEM_TAG_OPTIONS.some((option) => option.slug === tag),
+    ),
+  )
   const [sampleTests, setSampleTests] = useState<TestCaseInput[]>(
     initial?.testCases?.filter((t) => t.isSample) ?? [emptyTest(true)],
   )
@@ -36,6 +44,17 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
     initial?.testCases?.filter((t) => !t.isSample) ?? [emptyTest(false)],
   )
   const [submitting, setSubmitting] = useState(false)
+
+  const toggleTag = (slug: ProblemTagSlug) => {
+    setTags((prev) => {
+      if (prev.includes(slug)) return prev.filter((tag) => tag !== slug)
+      if (prev.length >= MAX_TAGS) {
+        toast.error(`Pick at most ${MAX_TAGS} tags`)
+        return prev
+      }
+      return [...prev, slug]
+    })
+  }
 
   const updateTest = (
     list: TestCaseInput[],
@@ -49,6 +68,10 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (tags.length === 0) {
+      toast.error("Select at least one tag")
+      return
+    }
     setSubmitting(true)
 
     const testCases = [
@@ -66,6 +89,7 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
         starterPython: starterPython.trim() || null,
         starterJs: starterJs.trim() || null,
         starterCpp: starterCpp.trim() || null,
+        tags,
         testCases,
       })
     } catch (err) {
@@ -159,6 +183,31 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
           required
         />
       </div>
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Tags</p>
+          <p className="text-xs text-muted">{tags.length}/{MAX_TAGS} selected</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {PROBLEM_TAG_OPTIONS.map((option) => {
+            const selected = tags.includes(option.slug)
+            return (
+              <button
+                key={option.slug}
+                type="button"
+                onClick={() => toggleTag(option.slug)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${
+                  selected
+                    ? "border-highlight/60 bg-highlight/15 text-highlight"
+                    : "border-border bg-secondary/20 text-muted hover:border-midtone hover:text-accent"
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
         <TextAreaField
           label="Python starter (optional)"
@@ -187,7 +236,12 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
         <Button type="button" variant="secondary" className="sm:flex-1" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" className="sm:flex-1" disabled={submitting || !title.trim() || !statement.trim()}>
+        <Button
+          type="submit"
+          variant="primary"
+          className="sm:flex-1"
+          disabled={submitting || !title.trim() || !statement.trim() || tags.length === 0}
+        >
           {submitting ? "Saving…" : submitLabel}
         </Button>
       </div>

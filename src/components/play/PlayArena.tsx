@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import Editor from "@monaco-editor/react"
 import Button from "../ui/Button"
@@ -9,6 +9,7 @@ import TournamentTimer from "../tournament/TournamentTimer"
 import ContestFreezeOverlay from "../tournament/ContestFreezeOverlay"
 import PlayWorkspaceLayout from "./PlayWorkspaceLayout"
 import ProblemStatement from "../problems/ProblemStatement"
+import ProblemTagChips from "../problems/ProblemTagChips"
 import PlayLeftPanelTabs, { type PlayLeftTab } from "./PlayLeftPanelTabs"
 import RunResultsPanel from "./RunResultsPanel"
 import SubmissionsPanel from "./SubmissionsPanel"
@@ -86,6 +87,7 @@ type PlayArenaProps = {
   tournamentId?: string
   matchId?: string
   onMatchEnded?: (event: VersusMatchEnded) => void
+  matchActions?: ReactNode
 }
 
 const PlayArena = ({
@@ -111,6 +113,7 @@ const PlayArena = ({
   matchId,
   onMatchEnded,
   onLeave,
+  matchActions,
 }: PlayArenaProps) => {
   const { play } = useHudSound()
   const toast = useToast()
@@ -426,6 +429,7 @@ const PlayArena = ({
             <Badge tone="neutral">{activeProblem.timeLimitMs} ms</Badge>
             <Badge tone="neutral">{activeProblem.memoryLimitMb} MB</Badge>
           </div>
+          <ProblemTagChips tags={activeProblem.tags} className="mb-3" />
           <ProblemStatement content={activeProblem.statement} />
         </>
       ) : !contestFrozen ? (
@@ -572,6 +576,7 @@ const PlayArena = ({
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {timerFields && <TournamentTimer fields={timerFields} size="sm" />}
+            {matchActions}
             {!readOnly && activeProblem && (
               <>
                 <Select

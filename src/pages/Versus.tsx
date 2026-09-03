@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { HiOutlineBolt, HiOutlineKey, HiOutlinePlus, HiOutlineUserPlus } from "react-icons/hi2"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
@@ -29,6 +29,7 @@ const DIFFICULTIES: {
 
 const Versus = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { token } = useAuth()
   const toast = useToast()
   const [createOpen, setCreateOpen] = useState(false)
@@ -39,6 +40,7 @@ const Versus = () => {
   const [queueError, setQueueError] = useState<string | null>(null)
   const [elapsedSec, setElapsedSec] = useState(0)
   const searchingRef = useRef(false)
+  const autoQueuedRef = useRef(false)
 
   const showSoon = (label: string) => {
     setNotice(`${label} is not available yet`)
@@ -88,17 +90,27 @@ const Versus = () => {
     }
   }, [token])
 
-  const startSearch = async () => {
-    if (!token || !difficulty) return
+  const startSearch = async (picked?: VersusDifficulty) => {
+    const pool = picked ?? difficulty
+    if (!token || !pool) return
+    setDifficulty(pool)
     setQueueError(null)
     setSearching(true)
-    const ack = await queueVersus(token, difficulty)
+    const ack = await queueVersus(token, pool)
     if (!ack.ok) {
       setSearching(false)
       setQueueError(ack.error)
       toast.error(ack.error)
     }
   }
+
+  useEffect(() => {
+    if (!token || autoQueuedRef.current || searching) return
+    const raw = searchParams.get("difficulty")?.toLowerCase()
+    if (raw !== "easy" && raw !== "medium" && raw !== "hard") return
+    autoQueuedRef.current = true
+    void startSearch(raw)
+  }, [token, searchParams, searching])
 
   const cancelSearch = async () => {
     if (token) await cancelVersusQueue(token)

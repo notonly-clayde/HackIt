@@ -5,6 +5,7 @@ import Button from "../components/ui/Button"
 import EmptyState from "../components/ui/EmptyState"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import ReportButton from "../components/moderation/ReportButton"
+import MatchHistoryList from "../components/profile/MatchHistoryList"
 import { useAuth } from "../contexts/AuthContext"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import { queryKeys } from "../lib/queryKeys"
@@ -86,6 +87,12 @@ const PublicProfile = () => {
           </Card>
         ))}
       </div>
+
+      <MatchHistoryList
+        userId={data.id}
+        token={token}
+        emptyDescription="1v1 results will show up here after they compete."
+      />
     </div>
   )
 }

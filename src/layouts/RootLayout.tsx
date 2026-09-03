@@ -8,6 +8,7 @@ import SuspendedAccount from "../pages/SuspendedAccount"
 const FULL_BLEED_ROUTES = [
   "/versus/play/:matchId",
   "/versus/lobby/:matchId",
+  "/versus/review/:matchId",
   "/tournament/:id/play",
   "/problems/:id",
 ] as const

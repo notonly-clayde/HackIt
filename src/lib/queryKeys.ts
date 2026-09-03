@@ -9,6 +9,7 @@ export type TournamentListFilters = {
 export type ProblemCatalogFilters = {
   search?: string
   difficulty?: ProblemDifficulty
+  tag?: string
 }
 
 export const queryKeys = {
@@ -46,5 +47,6 @@ export const queryKeys = {
   },
   users: {
     public: (id: string) => ["users", "public", id] as const,
+    matches: (id: string) => ["users", "matches", id] as const,
   },
 }

@@ -3,12 +3,17 @@ import type {
   SubmissionResult,
   VersusMatch,
   VersusMatchEnded,
+  VersusReview,
   VersusSubmissionResult,
 } from "../types/api"
 
 class VersusService extends ApiService {
   async getMatch(token: string | null, matchId: string) {
     return this.requestWithAuth<VersusMatch>(`/api/versus/matches/${matchId}`, token)
+  }
+
+  async getReview(token: string | null, matchId: string) {
+    return this.requestWithAuth<VersusReview>(`/api/versus/matches/${matchId}/review`, token)
   }
 
   async runSolution(

@@ -82,6 +82,7 @@ const EditProblem = () => {
             starterPython: problem.starterPython,
             starterJs: problem.starterJs,
             starterCpp: problem.starterCpp,
+            tags: problem.tags ?? [],
             testCases,
           }}
           submitLabel="Save changes"

@@ -11,6 +11,7 @@ import Modal from "../components/ui/Modal"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import ProblemStatement from "../components/problems/ProblemStatement"
+import ProblemTagChips from "../components/problems/ProblemTagChips"
 import SampleTestCases from "../components/problems/SampleTestCases"
 import { useAuth } from "../contexts/AuthContext"
 import { useConfirm } from "../contexts/ConfirmContext"
@@ -170,6 +171,7 @@ const AdminProblemReview = () => {
             <Badge tone="neutral">{problem.timeLimitMs} ms</Badge>
             <Badge tone="neutral">{problem.memoryLimitMb} MB</Badge>
           </div>
+          <ProblemTagChips tags={problem.tags} className="mt-3" />
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
