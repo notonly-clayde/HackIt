@@ -10,6 +10,7 @@ import { useHudSound } from "../contexts/SoundContext"
 import { prefersReducedMotion } from "../lib/hudSound"
 import VersusService from "../services/VersusService"
 import {
+  getLobbySocket,
   subscribeVersusEnded,
   subscribeVersusStarted,
   subscribeVersusState,
@@ -102,8 +103,40 @@ const VersusLobby = () => {
   const [leaving, setLeaving] = useState(false)
   const [ended, setEnded] = useState<VersusMatchEnded | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [starting, setStarting] = useState(false)
   const prevSecondsRef = useRef<number | null>(null)
   const redirectedRef = useRef(false)
+
+  const goToPlay = (id: string) => {
+    if (redirectedRef.current) return
+    redirectedRef.current = true
+    navigate(`/versus/play/${id}`, { replace: true })
+  }
+
+  const applyEndedFromMatch = (data: VersusMatch) => {
+    setEnded({
+      match: data,
+      result:
+        data.status === "aborted"
+          ? "abort"
+          : data.winnerId === (data.youAre === "a" ? data.playerA.id : data.playerB.id)
+            ? "win"
+            : data.winnerId
+              ? "loss"
+              : "draw",
+      yourEloDelta:
+        data.status === "aborted"
+          ? 0
+          : (data.youAre === "a"
+              ? (data.playerAEloAfter ?? data.playerAEloBefore)
+              : (data.playerBEloAfter ?? data.playerBEloBefore)) -
+            (data.youAre === "a" ? data.playerAEloBefore : data.playerBEloBefore),
+      endedReason:
+        data.endedReason ??
+        (data.status === "aborted" ? "abort" : data.winnerId ? "first_ac" : "timeout"),
+      solveElapsedMinutes: data.solveElapsedMinutes,
+    })
+  }
 
   useEffect(() => {
     if (!token || !matchId) return
@@ -121,31 +154,9 @@ const VersusLobby = () => {
       setMatch(data)
       setLoading(false)
       if (data.status === "live") {
-        redirectedRef.current = true
-        navigate(`/versus/play/${data.id}`, { replace: true })
+        goToPlay(data.id)
       } else if (data.status === "ended" || data.status === "aborted") {
-        setEnded({
-          match: data,
-          result:
-            data.status === "aborted"
-              ? "abort"
-              : data.winnerId === (data.youAre === "a" ? data.playerA.id : data.playerB.id)
-                ? "win"
-                : data.winnerId
-                  ? "loss"
-                  : "draw",
-          yourEloDelta:
-            data.status === "aborted"
-              ? 0
-              : (data.youAre === "a"
-                  ? (data.playerAEloAfter ?? data.playerAEloBefore)
-                  : (data.playerBEloAfter ?? data.playerBEloBefore)) -
-                (data.youAre === "a" ? data.playerAEloBefore : data.playerBEloBefore),
-          endedReason:
-            data.endedReason ??
-            (data.status === "aborted" ? "abort" : data.winnerId ? "first_ac" : "timeout"),
-          solveElapsedMinutes: data.solveElapsedMinutes,
-        })
+        applyEndedFromMatch(data)
       }
     })
 
@@ -162,15 +173,13 @@ const VersusLobby = () => {
     const unsubState = subscribeVersusState(token, (next) => {
       if (next.id !== matchId) return
       setMatch(next)
-      if (next.status === "live" && !redirectedRef.current) {
-        redirectedRef.current = true
-        navigate(`/versus/play/${next.id}`, { replace: true })
+      if (next.status === "live") {
+        goToPlay(next.id)
       }
     })
     const unsubStarted = subscribeVersusStarted(token, (event) => {
-      if (event.matchId !== matchId || redirectedRef.current) return
-      redirectedRef.current = true
-      navigate(`/versus/play/${event.matchId}`, { replace: true })
+      if (event.matchId !== matchId) return
+      goToPlay(event.matchId)
     })
     const unsubEnded = subscribeVersusEnded(token, (event) => {
       if (event.match.id !== matchId) return
@@ -178,10 +187,17 @@ const VersusLobby = () => {
       setMatch(event.match)
     })
 
+    const client = getLobbySocket(token)
+    const rewatch = () => {
+      void watchVersusMatch(token, matchId)
+    }
+    client.on("connect", rewatch)
+
     return () => {
       unsubState()
       unsubStarted()
       unsubEnded()
+      client.off("connect", rewatch)
     }
   }, [token, matchId, navigate])
 
@@ -194,6 +210,43 @@ const VersusLobby = () => {
     if (!match?.lobbyEndsAt) return 0
     return Math.max(0, Math.ceil((new Date(match.lobbyEndsAt).getTime() - now) / 1000))
   }, [match?.lobbyEndsAt, now])
+
+  // Countdown is display-only; when it hits 0, poll REST so a missed socket still starts play.
+  useEffect(() => {
+    if (!token || !matchId || !match || match.status !== "lobby" || ended || secondsLeft > 0) {
+      return
+    }
+
+    let cancelled = false
+    setStarting(true)
+
+    const poll = async () => {
+      const [data] = await VersusService.getMatch(token, matchId)
+      if (cancelled || !data || redirectedRef.current) return false
+      setMatch(data)
+      if (data.status === "live") {
+        goToPlay(data.id)
+        return true
+      }
+      if (data.status === "ended" || data.status === "aborted") {
+        applyEndedFromMatch(data)
+        return true
+      }
+      return false
+    }
+
+    void poll()
+    const id = window.setInterval(() => {
+      void poll().then((done) => {
+        if (done) window.clearInterval(id)
+      })
+    }, 500)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [token, matchId, match?.status, ended, secondsLeft])
 
   useEffect(() => {
     if (!match || match.status !== "lobby" || ended) {
@@ -262,15 +315,19 @@ const VersusLobby = () => {
           <PlayerCard player={you} label="You" highlight />
 
           <div className="flex flex-col items-center justify-center py-4 lg:py-10 min-w-[10rem]">
-            <p className="text-muted text-xs uppercase tracking-widest mb-2">Match starts in</p>
+            <p className="text-muted text-xs uppercase tracking-widest mb-2">
+              {starting || secondsLeft <= 0 ? "Starting match" : "Match starts in"}
+            </p>
             <div
               className={`font-mono tabular-nums font-bold tracking-tight ${
-                urgent
-                  ? `text-danger text-5xl sm:text-6xl ${reduceMotion ? "" : "animate-pulse"}`
-                  : "text-highlight text-4xl sm:text-5xl"
+                starting || secondsLeft <= 0
+                  ? `text-highlight text-4xl sm:text-5xl ${reduceMotion ? "" : "animate-pulse"}`
+                  : urgent
+                    ? `text-danger text-5xl sm:text-6xl ${reduceMotion ? "" : "animate-pulse"}`
+                    : "text-highlight text-4xl sm:text-5xl"
               }`}
             >
-              {secondsLeft}
+              {starting || secondsLeft <= 0 ? "…" : secondsLeft}
             </div>
             <p className="text-muted text-sm mt-3">vs</p>
             <p className="text-accent font-semibold mt-1 truncate max-w-[12rem]">
