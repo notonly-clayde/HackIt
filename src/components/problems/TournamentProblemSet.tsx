@@ -70,12 +70,8 @@ const TournamentProblemSet = ({
     return null
   }
 
-  const privateMine = mine.filter((p) => p.visibility !== "public")
-
-  const available =
-    source === "catalog"
-      ? catalog.filter((p) => !attached.some((a) => a.problemId === p.id))
-      : privateMine.filter((p) => !attached.some((a) => a.problemId === p.id))
+  const pool = source === "catalog" ? catalog : mine
+  const available = pool.filter((p) => !attached.some((a) => a.problemId === p.id))
 
   const invalidateProblems = () => {
     void queryClient.invalidateQueries({
@@ -226,7 +222,7 @@ const TournamentProblemSet = ({
         open={attachOpen}
         onClose={() => setAttachOpen(false)}
         title="Add problem to tournament"
-        description="Pick from the public catalog or your private library."
+        description="Pick from the public catalog or problems you authored."
         footer={
           <>
             <Button variant="secondary" onClick={() => setAttachOpen(false)}>
@@ -247,8 +243,7 @@ const TournamentProblemSet = ({
             <option value="">Select a problem…</option>
             {available.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.title} ({p.difficulty}
-                {p.tags?.length ? ` · ${p.tags.slice(0, 2).join(", ")}` : ""})
+                {`${p.title} (${p.difficulty}${source === "mine" ? ` · ${p.visibility}` : ""}${p.tags?.length ? ` · ${p.tags.slice(0, 2).join(", ")}` : ""})`}
               </option>
             ))}
           </SelectField>
