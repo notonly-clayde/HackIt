@@ -65,10 +65,8 @@ const VersusMatchResults = ({
   }, [ended.match.id, ended.result, play, reduceMotion])
 
   const youAreA = ended.match.youAre === "a"
-  const before = youAreA ? ended.match.playerAEloBefore : ended.match.playerBEloBefore
-  const after = youAreA
-    ? (ended.match.playerAEloAfter ?? before)
-    : (ended.match.playerBEloAfter ?? before)
+  const before = (youAreA ? ended.match.playerAEloBefore : ended.match.playerBEloBefore) ?? 0
+  const after = (youAreA ? ended.match.playerAEloAfter : ended.match.playerBEloAfter) ?? before
   const opponent = youAreA ? ended.match.playerB : ended.match.playerA
   const solve = ended.solveElapsedMinutes ?? ended.match.solveElapsedMinutes
 
@@ -97,7 +95,7 @@ const VersusMatchResults = ({
         <h2 className="text-accent font-bold text-3xl mb-2">{title}</h2>
         <p className="text-muted text-sm mb-5">{story(ended)}</p>
 
-        {ended.result !== "abort" ? (
+        {ended.result !== "abort" && opponent ? (
           <div className="rounded-xl border border-border bg-primary/40 px-4 py-3 mb-5 text-sm text-left space-y-1.5">
             <p className="text-accent">
               vs <span className="font-semibold">{opponent.displayName}</span>

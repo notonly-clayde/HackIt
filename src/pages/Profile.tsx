@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { HiCheck, HiOutlineBolt, HiOutlinePencilSquare, HiOutlineTrophy } from "react-icons/hi2"
 import { useAuth } from "../contexts/AuthContext"
@@ -8,11 +8,11 @@ import Button from "../components/ui/Button"
 import Modal from "../components/ui/Modal"
 import Field from "../components/ui/Field"
 import UserService from "../services/UserService"
-import MatchHistoryList from "../components/profile/MatchHistoryList"
+import ProfileHistoryList from "../components/profile/ProfileHistoryList"
 import { isEmailVerifiedForAccess } from "../lib/emailVerification"
 
 const Profile = () => {
-  const { user, profile, token, setProfile } = useAuth()
+  const { user, profile, token, setProfile, refreshProfile } = useAuth()
   const toast = useToast()
   const [editOpen, setEditOpen] = useState(false)
   const [displayName, setDisplayName] = useState("")
@@ -35,6 +35,10 @@ const Profile = () => {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("") || "H"
+
+  useEffect(() => {
+    if (token) void refreshProfile()
+  }, [token, refreshProfile])
 
   const stats = [
     { label: "1v1 ELO", value: (profile?.elo1v1 ?? 1200).toLocaleString() },
@@ -139,12 +143,7 @@ const Profile = () => {
         </section>
 
         {profile?.id ? (
-          <MatchHistoryList
-            userId={profile.id}
-            token={token}
-            canReview
-            emptyDescription="1v1 results will show up here after you compete."
-          />
+          <ProfileHistoryList userId={profile.id} token={token} canReview />
         ) : null}
 
       <Modal

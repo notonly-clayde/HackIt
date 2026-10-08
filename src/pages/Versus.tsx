@@ -8,6 +8,7 @@ import Field from "../components/ui/Field"
 import Badge from "../components/ui/Badge"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
+import VersusService from "../services/VersusService"
 import {
   cancelVersusQueue,
   queueVersus,
@@ -34,17 +35,52 @@ const Versus = () => {
   const toast = useToast()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<VersusDifficulty | null>(null)
   const [searching, setSearching] = useState(false)
   const [queueError, setQueueError] = useState<string | null>(null)
   const [elapsedSec, setElapsedSec] = useState(0)
   const searchingRef = useRef(false)
   const autoQueuedRef = useRef(false)
+  const [roomName, setRoomName] = useState("HackIT Room")
+  const [roomPassword, setRoomPassword] = useState("")
+  const [roomDifficulty, setRoomDifficulty] = useState<VersusDifficulty>("easy")
+  const [creatingRoom, setCreatingRoom] = useState(false)
+  const [joinRoomId, setJoinRoomId] = useState("")
+  const [joinPassword, setJoinPassword] = useState("")
+  const [joiningRoom, setJoiningRoom] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
 
-  const showSoon = (label: string) => {
-    setNotice(`${label} is not available yet`)
-    setTimeout(() => setNotice(null), 2200)
+  const handleCreateRoom = async () => {
+    if (!token || creatingRoom) return
+    setCreatingRoom(true)
+    const [room, err] = await VersusService.createRoom(token, {
+      difficulty: roomDifficulty,
+      lobbyName: roomName.trim() || undefined,
+      password: roomPassword || undefined,
+    })
+    setCreatingRoom(false)
+    if (err || !room) {
+      toast.error(err ?? "Failed to create room")
+      return
+    }
+    setCreateOpen(false)
+    navigate(`/versus/lobby/${room.id}`)
+  }
+
+  const handleJoinRoom = async () => {
+    // Accept a pasted lobby link as well as a bare room ID.
+    const roomId = joinRoomId.trim().replace(/\/+$/, "").split("/").pop() ?? ""
+    if (!token || !roomId || joiningRoom) return
+    setJoiningRoom(true)
+    setJoinError(null)
+    const [room, err] = await VersusService.joinRoom(token, roomId, joinPassword)
+    setJoiningRoom(false)
+    if (err || !room) {
+      setJoinError(err ?? "Failed to join room")
+      return
+    }
+    setJoinOpen(false)
+    navigate(`/versus/lobby/${room.id}`)
   }
 
   useEffect(() => {
@@ -230,17 +266,11 @@ const Versus = () => {
         </Card>
       </div>
 
-      {notice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 ui-card px-4 py-2.5 text-sm text-accent shadow-xl">
-          {notice}
-        </div>
-      )}
-
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Create lobby"
-        description="Set up your game and invite a friend."
+        description="Set up your game and invite a friend. Results count toward 1v1 ELO."
         footer={
           <>
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>
@@ -248,45 +278,101 @@ const Versus = () => {
             </Button>
             <Button
               variant="primary"
-              onClick={() => {
-                setCreateOpen(false)
-                showSoon("Private rooms")
-              }}
+              disabled={!token || creatingRoom}
+              onClick={() => void handleCreateRoom()}
             >
-              Create room
+              {creatingRoom ? "Creating…" : "Create room"}
             </Button>
           </>
         }
       >
-        <Field label="Lobby name" placeholder="HackIT Room" defaultValue="HackIT Room" />
-        <Field label="Password (optional)" type="password" placeholder="Leave blank for open" />
-        <Field label="Maximum players" type="number" min={2} max={2} defaultValue={2} />
+        <Field
+          label="Lobby name"
+          placeholder="HackIT Room"
+          value={roomName}
+          maxLength={60}
+          onChange={(e) => setRoomName(e.target.value)}
+        />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">Difficulty</span>
+          <div className="grid grid-cols-3 gap-2">
+            {DIFFICULTIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setRoomDifficulty(option.id)}
+                className={`rounded-xl border px-2 py-2 text-center transition ${
+                  roomDifficulty === option.id
+                    ? "border-highlight bg-highlight/15 text-accent"
+                    : "border-border bg-primary/40 text-muted hover:border-highlight/40"
+                }`}
+              >
+                <div className="font-semibold text-sm text-accent">{option.label}</div>
+                <div className="text-[11px] mt-0.5 opacity-80">{option.duration}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        <Field
+          label="Password (optional)"
+          type="password"
+          placeholder="Leave blank for open"
+          value={roomPassword}
+          maxLength={128}
+          onChange={(e) => setRoomPassword(e.target.value)}
+        />
       </Modal>
 
       <Modal
         open={joinOpen}
-        onClose={() => setJoinOpen(false)}
+        onClose={() => {
+          setJoinOpen(false)
+          setJoinError(null)
+        }}
         title="Join lobby"
         description="Enter the room code shared by the host."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setJoinOpen(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setJoinOpen(false)
+                setJoinError(null)
+              }}
+            >
               Cancel
             </Button>
             <Button
               variant="primary"
-              onClick={() => {
-                setJoinOpen(false)
-                showSoon("Private rooms")
-              }}
+              disabled={!token || !joinRoomId.trim() || joiningRoom}
+              onClick={() => void handleJoinRoom()}
             >
-              Join room
+              {joiningRoom ? "Joining…" : "Join room"}
             </Button>
           </>
         }
       >
-        <Field label="Lobby ID" placeholder="Room ID" />
-        <Field label="Password" type="password" placeholder="If required" />
+        <Field
+          label="Lobby ID"
+          placeholder="Room ID"
+          value={joinRoomId}
+          onChange={(e) => {
+            setJoinRoomId(e.target.value)
+            if (joinError) setJoinError(null)
+          }}
+          autoFocus
+        />
+        <Field
+          label="Password"
+          type="password"
+          placeholder="If required"
+          value={joinPassword}
+          onChange={(e) => {
+            setJoinPassword(e.target.value)
+            if (joinError) setJoinError(null)
+          }}
+          error={joinError ?? undefined}
+        />
       </Modal>
     </>
   )

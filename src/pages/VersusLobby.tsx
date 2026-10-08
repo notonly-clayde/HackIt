@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { useHudSound } from "../contexts/SoundContext"
 import { prefersReducedMotion } from "../lib/hudSound"
+import { useVersusProfileSync } from "../hooks/useVersusProfileSync"
 import VersusService from "../services/VersusService"
 import {
   getLobbySocket,
@@ -107,6 +108,8 @@ const VersusLobby = () => {
   const prevSecondsRef = useRef<number | null>(null)
   const redirectedRef = useRef(false)
 
+  useVersusProfileSync(ended)
+
   const goToPlay = (id: string) => {
     if (redirectedRef.current) return
     redirectedRef.current = true
@@ -119,7 +122,7 @@ const VersusLobby = () => {
       result:
         data.status === "aborted"
           ? "abort"
-          : data.winnerId === (data.youAre === "a" ? data.playerA.id : data.playerB.id)
+          : data.winnerId === (data.youAre === "a" ? data.playerA.id : data.playerB?.id)
             ? "win"
             : data.winnerId
               ? "loss"
@@ -129,8 +132,8 @@ const VersusLobby = () => {
           ? 0
           : (data.youAre === "a"
               ? (data.playerAEloAfter ?? data.playerAEloBefore)
-              : (data.playerBEloAfter ?? data.playerBEloBefore)) -
-            (data.youAre === "a" ? data.playerAEloBefore : data.playerBEloBefore),
+              : (data.playerBEloAfter ?? data.playerBEloBefore ?? 0)) -
+            ((data.youAre === "a" ? data.playerAEloBefore : data.playerBEloBefore) ?? 0),
       endedReason:
         data.endedReason ??
         (data.status === "aborted" ? "abort" : data.winnerId ? "first_ac" : "timeout"),
@@ -267,8 +270,19 @@ const VersusLobby = () => {
 
   const you = match ? (match.youAre === "a" ? match.playerA : match.playerB) : null
   const opponent = match ? (match.youAre === "a" ? match.playerB : match.playerA) : null
+  const waitingForGuest = match?.status === "lobby" && !opponent
   const urgent = secondsLeft <= URGENCY_THRESHOLD_SECONDS && secondsLeft > 0
   const reduceMotion = prefersReducedMotion()
+
+  const copyRoomId = async () => {
+    if (!match) return
+    try {
+      await navigator.clipboard.writeText(match.id)
+      toast.success("Room ID copied")
+    } catch {
+      toast.error("Could not copy room ID")
+    }
+  }
 
   const handleLeave = async () => {
     if (!token || !matchId || leaving) return
@@ -283,7 +297,7 @@ const VersusLobby = () => {
     setMatch(result.match)
   }
 
-  if (loading || !match || !you || !opponent) {
+  if (loading || !match || !you || (!opponent && !waitingForGuest)) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
         <QueryLoadingCard message="Loading match lobby…" />
@@ -296,9 +310,11 @@ const VersusLobby = () => {
       <div className="page-container py-6 sm:py-10 flex-1 flex flex-col">
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
-            <p className="ui-kicker mb-1">Onboarding lobby</p>
+            <p className="ui-kicker mb-1">
+              {match.kind === "private" ? "Private room" : "Onboarding lobby"}
+            </p>
             <h1 className="text-accent font-bold text-xl sm:text-2xl tracking-tight">
-              Versus match
+              {match.lobbyName || "Versus match"}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -306,7 +322,7 @@ const VersusLobby = () => {
               {match.difficulty}
             </Badge>
             <Button variant="secondary" disabled={leaving || Boolean(ended)} onClick={() => void handleLeave()}>
-              {leaving ? "Aborting…" : "Abort"}
+              {leaving ? "Aborting…" : waitingForGuest ? "Close room" : "Abort"}
             </Button>
           </div>
         </div>
@@ -314,28 +330,56 @@ const VersusLobby = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 lg:gap-6 items-start flex-1">
           <PlayerCard player={you} label="You" highlight />
 
-          <div className="flex flex-col items-center justify-center py-4 lg:py-10 min-w-[10rem]">
-            <p className="text-muted text-xs uppercase tracking-widest mb-2">
-              {starting || secondsLeft <= 0 ? "Starting match" : "Match starts in"}
-            </p>
-            <div
-              className={`font-mono tabular-nums font-bold tracking-tight ${
-                starting || secondsLeft <= 0
-                  ? `text-highlight text-4xl sm:text-5xl ${reduceMotion ? "" : "animate-pulse"}`
-                  : urgent
-                    ? `text-danger text-5xl sm:text-6xl ${reduceMotion ? "" : "animate-pulse"}`
-                    : "text-highlight text-4xl sm:text-5xl"
-              }`}
-            >
-              {starting || secondsLeft <= 0 ? "…" : secondsLeft}
+          {!opponent ? (
+            <div className="flex flex-col items-center justify-center py-4 lg:py-10 min-w-[10rem] max-w-xs mx-auto text-center">
+              <p className="text-muted text-xs uppercase tracking-widest mb-2">Waiting for friend</p>
+              <p className="text-muted text-sm mb-3">
+                Share this room ID. The match countdown starts as soon as they join.
+              </p>
+              <code className="block w-full break-all rounded-xl border border-border bg-primary/40 px-3 py-2 font-mono text-sm text-accent">
+                {match.id}
+              </code>
+              <Button variant="primary" className="w-full mt-3" onClick={() => void copyRoomId()}>
+                Copy room ID
+              </Button>
+              {match.passwordProtected ? (
+                <p className="text-muted text-xs mt-2">Your friend will also need the room password.</p>
+              ) : null}
             </div>
-            <p className="text-muted text-sm mt-3">vs</p>
-            <p className="text-accent font-semibold mt-1 truncate max-w-[12rem]">
-              {opponent.displayName}
-            </p>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-4 lg:py-10 min-w-[10rem]">
+              <p className="text-muted text-xs uppercase tracking-widest mb-2">
+                {starting || secondsLeft <= 0 ? "Starting match" : "Match starts in"}
+              </p>
+              <div
+                className={`font-mono tabular-nums font-bold tracking-tight ${
+                  starting || secondsLeft <= 0
+                    ? `text-highlight text-4xl sm:text-5xl ${reduceMotion ? "" : "animate-pulse"}`
+                    : urgent
+                      ? `text-danger text-5xl sm:text-6xl ${reduceMotion ? "" : "animate-pulse"}`
+                      : "text-highlight text-4xl sm:text-5xl"
+                }`}
+              >
+                {starting || secondsLeft <= 0 ? "…" : secondsLeft}
+              </div>
+              <p className="text-muted text-sm mt-3">vs</p>
+              <p className="text-accent font-semibold mt-1 truncate max-w-[12rem]">
+                {opponent.displayName}
+              </p>
+            </div>
+          )}
 
-          <PlayerCard player={opponent} label="Opponent" />
+          {opponent ? (
+            <PlayerCard player={opponent} label="Opponent" />
+          ) : (
+            <Card className="p-5 sm:p-6 border-dashed">
+              <p className="ui-kicker mb-3">Opponent</p>
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded-full border border-dashed border-border bg-primary/40" />
+                <p className="text-muted text-sm">Open seat — waiting for your friend to join…</p>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
 

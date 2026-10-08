@@ -1,5 +1,6 @@
 import ApiService from "./ApiService"
 import type {
+  CreateVersusRoomInput,
   SubmissionResult,
   VersusMatch,
   VersusMatchEnded,
@@ -38,6 +39,24 @@ class VersusService extends ApiService {
       {
         method: "POST",
         body: JSON.stringify(body),
+      },
+    )
+  }
+
+  async createRoom(token: string | null, input: CreateVersusRoomInput) {
+    return this.requestWithAuth<VersusMatch>("/api/versus/rooms", token, {
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  }
+
+  async joinRoom(token: string | null, matchId: string, password?: string) {
+    return this.requestWithAuth<VersusMatch>(
+      `/api/versus/rooms/${encodeURIComponent(matchId)}/join`,
+      token,
+      {
+        method: "POST",
+        body: JSON.stringify({ password: password || undefined }),
       },
     )
   }

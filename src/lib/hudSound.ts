@@ -186,13 +186,17 @@ function scheduleCue(ctx: AudioContext, master: GainNode, cue: HudSoundCue, star
   }
 }
 
-export function playHudCue(cue: HudSoundCue, volume = 0.35): void {
+// Cue tone gains are tuned low (~0.05); this lifts overall output while keeping
+// stacked tones well under clipping at full volume.
+const OUTPUT_BOOST = 4
+
+export function playHudCue(cue: HudSoundCue, volume = DEFAULT_VOLUME): void {
   const ctx = getContext()
   if (!ctx || ctx.state !== "running") return
   if (shouldThrottle(cue)) return
 
   const master = ctx.createGain()
-  master.gain.setValueAtTime(Math.min(1, Math.max(0, volume)), ctx.currentTime)
+  master.gain.setValueAtTime(Math.min(1, Math.max(0, volume)) * OUTPUT_BOOST, ctx.currentTime)
   master.connect(ctx.destination)
 
   scheduleCue(ctx, master, cue, ctx.currentTime)
@@ -203,4 +207,4 @@ export const STORAGE_KEYS = {
   volume: "hackit.soundVolume",
 } as const
 
-export const DEFAULT_VOLUME = 0.35
+export const DEFAULT_VOLUME = 0.6

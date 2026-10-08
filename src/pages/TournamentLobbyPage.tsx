@@ -144,6 +144,18 @@ const TournamentLobbyPage = () => {
     [id, queryClient],
   )
 
+  // The cached detail was fetched before joining, so the play page would otherwise
+  // treat this user as a non-participant and bounce them to spectate on start.
+  const patchViewerRole = useCallback(
+    (viewerRole: "player" | "mod" | null) => {
+      if (!id) return
+      queryClient.setQueryData(queryKeys.tournaments.detail(id), (prev: typeof tournament) =>
+        prev ? { ...prev, viewerRole } : prev,
+      )
+    },
+    [id, queryClient],
+  )
+
   const attemptJoin = useCallback(
     async (password?: string) => {
       if (!id || !token) return
@@ -177,6 +189,8 @@ const TournamentLobbyPage = () => {
         joinedRef.current = true
         pendingLobbyPasswords.delete(id)
         patchPlayerCount(ack.state.playerCount, ack.state.maxPlayers)
+        const self = ack.state.players.find((player) => player.id === profile?.id)
+        patchViewerRole(self?.role === "mod" ? "mod" : "player")
       } catch (joinErr) {
         const message = joinErr instanceof Error ? joinErr.message : "Failed to join lobby"
         setError(message)
@@ -187,7 +201,7 @@ const TournamentLobbyPage = () => {
         setJoining(false)
       }
     },
-    [id, token, patchPlayerCount, toast],
+    [id, token, profile?.id, patchPlayerCount, patchViewerRole, toast],
   )
 
   const attemptWatch = useCallback(async () => {
@@ -325,13 +339,14 @@ const TournamentLobbyPage = () => {
     return () => {
       if (joinedRef.current && token && !enteringLiveRef.current) {
         void leaveLobby(token)
+        patchViewerRole(null)
       }
 
       if (!enteringLiveRef.current) {
         disconnectLobbySocket()
       }
     }
-  }, [token])
+  }, [token, patchViewerRole])
 
   const handleVerifyPassword = async () => {
     setPasswordError(null)
@@ -343,6 +358,7 @@ const TournamentLobbyPage = () => {
 
     setLeaving(true)
     await leaveLobby(token)
+    patchViewerRole(null)
     joinedRef.current = false
     if (id) {
       lobbyJoinInitiated.delete(id)

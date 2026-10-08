@@ -47,6 +47,6 @@ export const queryKeys = {
   },
   users: {
     public: (id: string) => ["users", "public", id] as const,
-    matches: (id: string) => ["users", "matches", id] as const,
+    history: (id: string) => ["users", "history", id] as const,
   },
 }

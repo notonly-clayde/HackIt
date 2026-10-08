@@ -15,6 +15,7 @@ import ReportButton from "../components/moderation/ReportButton"
 import { useLobbyIndexCounts } from "../hooks/useLobbyIndexCounts"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import { useTournamentStandingsSocket } from "../hooks/useTournamentStandingsSocket"
+import { useTournamentLiveRedirect } from "../hooks/useTournamentLiveRedirect"
 import {
   useTournamentDetail,
   useTournamentStandings,
@@ -64,6 +65,7 @@ const TournamentDetail = () => {
 
   useTournamentStandingsSocket(token, id, showStandings)
   useLobbyIndexCounts(token, id)
+  useTournamentLiveRedirect(token, tournament)
 
   if (isLoading && !tournament) {
     return (

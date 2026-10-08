@@ -18,6 +18,7 @@ const AuthContext = createContext<{
   setProfile: (profile: UserProfile | null) => void
   isLoading: boolean
   refresh: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }>({
   user: null,
   profile: null,
@@ -29,6 +30,7 @@ const AuthContext = createContext<{
   setProfile: () => {},
   isLoading: true,
   refresh: async () => {},
+  refreshProfile: async () => {},
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -86,6 +88,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false)
   }, [toast])
 
+  const refreshProfile = useCallback(async () => {
+    const jwt = token ?? (await getAuthJwt())
+    if (!jwt) return
+
+    const [data] = await UserService.getMe(jwt)
+    if (data) {
+      setProfile(data)
+    }
+  }, [token])
+
   const setAuth = (data: User | undefined) => {
     setUser(data ?? null)
     if (!data) {
@@ -131,6 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfile,
         isLoading: loading,
         refresh: fetchAuthUser,
+        refreshProfile,
       }}
     >
       {children}

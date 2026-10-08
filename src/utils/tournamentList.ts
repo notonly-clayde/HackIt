@@ -54,7 +54,7 @@ function compareTournamentListItems(a: TournamentItem, b: TournamentItem): numbe
   } else if (a.status === "Ended") {
     timeDiff = compareIsoTime(a.endedAt, b.endedAt, "desc")
   } else {
-    timeDiff = compareIsoTime(a.scheduledAt, b.scheduledAt, "asc")
+    timeDiff = compareIsoTime(a.createdAt ?? a.scheduledAt, b.createdAt ?? b.scheduledAt, "desc")
   }
 
   if (timeDiff !== 0) return timeDiff

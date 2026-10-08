@@ -8,6 +8,7 @@ import VersusMatchResults from "../components/play/VersusMatchResults"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { useForfeitLeaveGuard } from "../hooks/useForfeitLeaveGuard"
+import { useVersusProfileSync } from "../hooks/useVersusProfileSync"
 import { useTournamentTimer } from "../hooks/useTournamentTimer"
 import VersusService from "../services/VersusService"
 import {
@@ -30,8 +31,8 @@ import type { TournamentTimerFields } from "../types/api"
 
 function endedFromMatch(data: VersusMatch): VersusMatchEnded {
   const isA = data.youAre === "a"
-  const before = isA ? data.playerAEloBefore : data.playerBEloBefore
-  const after = isA ? (data.playerAEloAfter ?? before) : (data.playerBEloAfter ?? before)
+  const before = (isA ? data.playerAEloBefore : data.playerBEloBefore) ?? 0
+  const after = (isA ? data.playerAEloAfter : data.playerBEloAfter) ?? before
   const endedReason: VersusEndedReason =
     data.endedReason ??
     (data.status === "aborted" ? "abort" : data.winnerId ? "first_ac" : "timeout")
@@ -40,7 +41,7 @@ function endedFromMatch(data: VersusMatch): VersusMatchEnded {
     result:
       data.status === "aborted"
         ? "abort"
-        : data.winnerId === (isA ? data.playerA.id : data.playerB.id)
+        : data.winnerId === (isA ? data.playerA.id : data.playerB?.id)
           ? "win"
           : data.winnerId
             ? "loss"
@@ -72,6 +73,8 @@ const VersusPlay = () => {
     setMatch(event.match)
     setDrawRole("none")
   }, [])
+
+  useVersusProfileSync(ended)
 
   useEffect(() => {
     if (!token || !matchId) return
