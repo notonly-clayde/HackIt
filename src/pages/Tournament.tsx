@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   HiOutlineChartBar,
@@ -8,7 +8,9 @@ import {
   HiOutlineFlag,
   HiOutlineListBullet,
   HiOutlineMagnifyingGlass,
+  HiOutlinePencilSquare,
   HiOutlineSquares2X2,
+  HiOutlineTrash,
   HiOutlineUserGroup,
   HiOutlineUserPlus,
 } from "react-icons/hi2"
@@ -20,7 +22,12 @@ import SectionHeader from "../components/ui/SectionHeader"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import Select from "../components/ui/Select"
+import KebabMenu from "../components/ui/KebabMenu"
+import TournamentService from "../services/TournamentService"
 import { useHudSound } from "../contexts/SoundContext"
+import { useToast } from "../contexts/ToastContext"
+import { useConfirm } from "../contexts/ConfirmContext"
+import { queryKeys } from "../lib/queryKeys"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import { useTournamentIndexUpdates } from "../hooks/useTournamentIndexUpdates"
 import {
@@ -100,6 +107,63 @@ const TournamentActions = ({ tournament }: { tournament: TournamentItem }) => {
         </Link>
       )}
     </div>
+  )
+}
+
+const TournamentHostMenu = ({ tournament }: { tournament: TournamentItem }) => {
+  const { token, profile } = useAuth()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const toast = useToast()
+  const { confirm } = useConfirm()
+  const [deleting, setDeleting] = useState(false)
+
+  const editable = tournament.status === "Open" || tournament.status === "Soon"
+  if (!profile || tournament.hostId !== profile.id || !editable) return null
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: "Delete tournament",
+      message: `Delete "${tournament.name}"? Players in the lobby will be removed. This cannot be undone.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    })
+    if (!ok) return
+
+    setDeleting(true)
+    const [, err] = await TournamentService.remove(token, tournament.id)
+    setDeleting(false)
+
+    if (err) {
+      toast.error(err)
+      return
+    }
+
+    queryClient.removeQueries({ queryKey: queryKeys.tournaments.detail(tournament.id) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.lists() })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.hostedAll() })
+    toast.success("Tournament deleted")
+  }
+
+  return (
+    <KebabMenu
+      aria-label={`Options for ${tournament.name}`}
+      items={[
+        {
+          label: "Edit",
+          icon: <HiOutlinePencilSquare className="h-4 w-4" />,
+          onSelect: () => navigate(`/tournament/${tournament.id}/edit`, { state: { from: "list" } }),
+          disabled: deleting,
+        },
+        {
+          label: deleting ? "Deleting…" : "Delete",
+          icon: <HiOutlineTrash className="h-4 w-4" />,
+          onSelect: () => void handleDelete(),
+          danger: true,
+          disabled: deleting,
+        },
+      ]}
+    />
   )
 }
 
@@ -256,10 +320,13 @@ const Tournament = () => {
               className="flex h-full flex-col px-5 py-5"
               onMouseEnter={() => handleTournamentHover(tournament.id, tournament.status)}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-accent font-semibold text-lg tracking-tight min-w-0">{tournament.name}</h3>
-                <Badge tone={statusTone[tournament.status]}>{tournament.status}</Badge>
-                {tournament.visibility === "private" && <Badge tone="neutral">Private</Badge>}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <h3 className="text-accent font-semibold text-lg tracking-tight min-w-0">{tournament.name}</h3>
+                  <Badge tone={statusTone[tournament.status]}>{tournament.status}</Badge>
+                  {tournament.visibility === "private" && <Badge tone="neutral">Private</Badge>}
+                </div>
+                <TournamentHostMenu tournament={tournament} />
               </div>
               <p className="text-muted text-sm mt-2">
                 {tournament.type} · {tournament.date} · {tournament.duration}
@@ -300,7 +367,10 @@ const Tournament = () => {
                     {tournament.players}/{tournament.maxPlayers} players joined
                   </p>
                 </div>
-                <TournamentActions tournament={tournament} />
+                <div className="flex items-center gap-2 shrink-0">
+                  <TournamentActions tournament={tournament} />
+                  <TournamentHostMenu tournament={tournament} />
+                </div>
               </div>
             </Card>
           ))}

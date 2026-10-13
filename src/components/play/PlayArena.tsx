@@ -29,6 +29,7 @@ import { useHudSound } from "../../contexts/SoundContext"
 import { useToast } from "../../contexts/ToastContext"
 import { useContestFreezeSounds } from "../../hooks/useContestFreezeSounds"
 import { useTournamentUrgencySound } from "../../hooks/useTournamentUrgencySound"
+import { useLiveFocusIntegrity, type FocusIntegrityTarget } from "../../hooks/useLiveFocusIntegrity"
 import type { ProblemDetail, TournamentTimerFields, VersusMatchEnded } from "../../types/api"
 
 function playResultCue(result: PlayRunResultView, play: (cue: "confirm" | "deny") => void) {
@@ -88,6 +89,7 @@ type PlayArenaProps = {
   matchId?: string
   onMatchEnded?: (event: VersusMatchEnded) => void
   matchActions?: ReactNode
+  focusIntegrity?: { enabled: boolean; paused?: boolean }
 }
 
 const PlayArena = ({
@@ -114,9 +116,22 @@ const PlayArena = ({
   onMatchEnded,
   onLeave,
   matchActions,
+  focusIntegrity,
 }: PlayArenaProps) => {
   const { play } = useHudSound()
   const toast = useToast()
+  const focusTarget: FocusIntegrityTarget | null = tournamentId
+    ? { mode: "tournament", tournamentId }
+    : matchId
+      ? { mode: "versus", matchId }
+      : null
+  const { monitoring: focusMonitoring, totalDeduction: focusDeduction } = useLiveFocusIntegrity({
+    token: authToken,
+    target: focusTarget,
+    enabled: Boolean(focusIntegrity?.enabled && !readOnly),
+    paused: focusIntegrity?.paused,
+  })
+  const focusUnit = focusTarget?.mode === "versus" ? "ELO" : "points"
   useTournamentUrgencySound(timerFields, !readOnly)
   useContestFreezeSounds(contestFrozen, resumeCountdownSeconds, !readOnly)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -624,6 +639,21 @@ const PlayArena = ({
             )}
           </div>
         </div>
+
+        {focusMonitoring && (
+          <div className="flex flex-wrap items-center gap-2 px-3 sm:px-5 py-1.5 border-t border-border bg-primary/40 text-xs">
+            <Badge tone="warn">Focus mode</Badge>
+            <span className="text-muted">
+              Stay on this tab. Alt-tabbing or switching tabs costs {focusUnit} and alerts the{" "}
+              {focusTarget?.mode === "versus" ? "opponent" : "host and moderators"}.
+            </span>
+            {focusDeduction > 0 && (
+              <span className="text-danger font-semibold tabular-nums">
+                −{focusDeduction} {focusUnit} so far
+              </span>
+            )}
+          </div>
+        )}
 
         {problems.length > 1 && (
           <div className="flex gap-2 overflow-x-auto px-3 sm:px-5 py-2 border-t border-border">

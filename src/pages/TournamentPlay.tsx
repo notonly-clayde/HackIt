@@ -130,6 +130,10 @@ const TournamentPlay = () => {
       resumeCountdownSeconds={isResuming ? secondsLeft : null}
       authToken={token}
       tournamentId={id}
+      focusIntegrity={{
+        enabled: tournament.status === "Live" && !contestTimeExpired,
+        paused: contestFrozen,
+      }}
     />
   )
 }

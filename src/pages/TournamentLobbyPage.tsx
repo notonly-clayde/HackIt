@@ -11,6 +11,8 @@ import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import TournamentProblemSet from "../components/problems/TournamentProblemSet"
 import ReportButton from "../components/moderation/ReportButton"
+import KebabMenu from "../components/ui/KebabMenu"
+import { HiOutlinePencilSquare, HiOutlineTrash } from "react-icons/hi2"
 import TournamentService from "../services/TournamentService"
 import {
   applyLiveStateToTournament,
@@ -23,6 +25,7 @@ import {
 } from "../services/socket"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
+import { useConfirm } from "../contexts/ConfirmContext"
 import { useTournamentDetail } from "../hooks/queries/useTournamentQueries"
 import { useTournamentRemovedRedirect } from "../hooks/useTournamentRemovedRedirect"
 import { queryKeys } from "../lib/queryKeys"
@@ -62,6 +65,7 @@ const TournamentLobbyPage = () => {
   const queryClient = useQueryClient()
   const { token, profile } = useAuth()
   const toast = useToast()
+  const { confirm } = useConfirm()
   const { data: tournament, isLoading, isFetching, error: queryError } = useTournamentDetail(id, token)
 
   const [lobbyState, setLobbyState] = useState<LobbyState | null>(null)
@@ -72,13 +76,16 @@ const TournamentLobbyPage = () => {
   const [lobbyPassword, setLobbyPassword] = useState("")
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const joinedRef = useRef(false)
   const joiningRef = useRef(false)
   const isHostRef = useRef(false)
   const enteringLiveRef = useRef(false)
+  const deletingRef = useRef(false)
 
   useTournamentRemovedRedirect(id, token, queryError, {
+    suppress: () => deletingRef.current,
     onRemoved: () => {
       enteringLiveRef.current = true
       joinedRef.current = false
@@ -369,6 +376,46 @@ const TournamentLobbyPage = () => {
     navigate(`/tournament/${id}`)
   }
 
+  const handleEdit = () => {
+    if (!id) return
+    navigate(`/tournament/${id}/edit`, { state: { from: "lobby" } })
+  }
+
+  const handleDelete = async () => {
+    if (!id || !token || !tournament || deleting) return
+
+    const ok = await confirm({
+      title: "Delete tournament",
+      message: `Delete "${tournament.name}"? Players in the lobby will be removed. This cannot be undone.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    })
+    if (!ok) return
+
+    deletingRef.current = true
+    setDeleting(true)
+    const [, err] = await TournamentService.remove(token, id)
+    setDeleting(false)
+
+    if (err) {
+      deletingRef.current = false
+      toast.error(err)
+      return
+    }
+
+    enteringLiveRef.current = true
+    joinedRef.current = false
+    lobbyJoinInitiated.delete(id)
+    pendingLobbyPasswords.delete(id)
+    inFlightLobbyJoins.delete(id)
+    disconnectLobbySocket()
+    queryClient.removeQueries({ queryKey: queryKeys.tournaments.detail(id) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.lists() })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.hostedAll() })
+    toast.success("Tournament deleted")
+    navigate("/tournament", { replace: true })
+  }
+
   const handleStart = async () => {
     if (!id || !token || !tournament) return
 
@@ -448,7 +495,30 @@ const TournamentLobbyPage = () => {
         <p className="ui-kicker mb-2 justify-center sm:justify-start">
           {isHost ? "Host staging" : "Staging lobby"}
         </p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-accent tracking-tight">{tournament.name}</h1>
+        <div className="flex items-start justify-center sm:justify-between gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-accent tracking-tight">{tournament.name}</h1>
+          {isHost && (tournament.status === "Open" || tournament.status === "Soon") && (
+            <KebabMenu
+              aria-label="Lobby options"
+              className="shrink-0"
+              items={[
+                {
+                  label: "Edit",
+                  icon: <HiOutlinePencilSquare className="h-4 w-4" />,
+                  onSelect: handleEdit,
+                  disabled: deleting,
+                },
+                {
+                  label: deleting ? "Deleting…" : "Delete",
+                  icon: <HiOutlineTrash className="h-4 w-4" />,
+                  onSelect: () => void handleDelete(),
+                  danger: true,
+                  disabled: deleting,
+                },
+              ]}
+            />
+          )}
+        </div>
         <p className="text-muted text-sm mt-2">
           {isHost
             ? "Manage the lobby and start the tournament when ready. You will not join as a player."

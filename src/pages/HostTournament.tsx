@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import { HiOutlineArrowLeft } from "react-icons/hi2"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
@@ -7,9 +8,11 @@ import Field, { SelectField } from "../components/ui/Field"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import TournamentService from "../services/TournamentService"
+import { queryKeys } from "../lib/queryKeys"
 
 const HostTournament = () => {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { token } = useAuth()
   const toast = useToast()
   const [name, setName] = useState("")
@@ -53,6 +56,7 @@ const HostTournament = () => {
       return
     }
 
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.hostedAll() })
     navigate(`/tournament/${data.id}/lobby`)
   }
 

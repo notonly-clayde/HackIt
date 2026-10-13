@@ -14,6 +14,7 @@ import TournamentProblemSet from "../components/problems/TournamentProblemSet"
 import TournamentProblemList from "../components/problems/TournamentProblemList"
 import TournamentService from "../services/TournamentService"
 import {
+  subscribeTournamentIntegrityAlert,
   subscribeTournamentWorkspaceUpdate,
   watchTournament,
   watchTournamentHost,
@@ -40,7 +41,7 @@ import {
   useTournamentStandingsLiveSocket,
 } from "../hooks/useTournamentLiveSockets"
 import { queryKeys } from "../lib/queryKeys"
-import type { PlayerWorkspaceView } from "../types/api"
+import type { PlayerWorkspaceView, TournamentFocusViolationEvent } from "../types/api"
 
 const TournamentSpectate = () => {
   const { id } = useParams()
@@ -63,6 +64,7 @@ const TournamentSpectate = () => {
   const [playerWorkspace, setPlayerWorkspace] = useState<PlayerWorkspaceView | null>(null)
   const [viewedProblemId, setViewedProblemId] = useState<string | null>(null)
   const [acting, setActing] = useState<"pause" | "resume" | "end" | null>(null)
+  const [focusAlerts, setFocusAlerts] = useState<TournamentFocusViolationEvent[]>([])
   const followActiveProblemRef = useRef(true)
 
   const isHost = Boolean(
@@ -158,6 +160,16 @@ const TournamentSpectate = () => {
       unsubscribeWorkspace()
     }
   }, [canWatchAsStaff, id, selectedUserId, token, viewedProblemId])
+
+  useEffect(() => {
+    if (!token || !id || !canWatchAsStaff) return
+
+    return subscribeTournamentIntegrityAlert(token, (event) => {
+      if (event.tournamentId !== id) return
+      toast.error(`${event.displayName} left the arena tab (−${event.deduction} pts)`)
+      setFocusAlerts((prev) => [event, ...prev].slice(0, 5))
+    })
+  }, [token, id, canWatchAsStaff, toast])
 
   useTournamentLiveStateSocket(token, id)
   useTournamentStandingsLiveSocket(token, id)
@@ -336,6 +348,26 @@ const TournamentSpectate = () => {
               {acting === "end" ? "Stopping…" : "Stop tournament"}
             </Button>
           </div>
+        </Card>
+      )}
+
+      {canWatchAsStaff && isLive && focusAlerts.length > 0 && (
+        <Card className="mt-5 p-5 sm:p-6">
+          <p className="ui-kicker mb-3">Focus alerts</p>
+          <ul className="space-y-1.5 text-sm">
+            {focusAlerts.map((alert) => (
+              <li key={`${alert.userId}-${alert.at}`} className="flex flex-wrap items-center gap-2">
+                <span className="text-muted text-xs tabular-nums">
+                  {new Date(alert.at).toLocaleTimeString()}
+                </span>
+                <span className="text-accent font-medium">{alert.displayName}</span>
+                <span className="text-muted">left the arena tab</span>
+                <span className="text-danger tabular-nums">
+                  −{alert.deduction} pts (total −{alert.totalDeduction})
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 

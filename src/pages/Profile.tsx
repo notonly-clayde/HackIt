@@ -8,7 +8,7 @@ import Button from "../components/ui/Button"
 import Modal from "../components/ui/Modal"
 import Field from "../components/ui/Field"
 import UserService from "../services/UserService"
-import ProfileHistoryList from "../components/profile/ProfileHistoryList"
+import ProfileActivitySection from "../components/profile/ProfileActivitySection"
 import { isEmailVerifiedForAccess } from "../lib/emailVerification"
 
 const Profile = () => {
@@ -143,7 +143,7 @@ const Profile = () => {
         </section>
 
         {profile?.id ? (
-          <ProfileHistoryList userId={profile.id} token={token} canReview />
+          <ProfileActivitySection userId={profile.id} token={token} />
         ) : null}
 
       <Modal

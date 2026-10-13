@@ -48,5 +48,7 @@ export const queryKeys = {
   users: {
     public: (id: string) => ["users", "public", id] as const,
     history: (id: string) => ["users", "history", id] as const,
+    hostedAll: () => ["users", "hosted"] as const,
+    hosted: (id: string) => [...queryKeys.users.hostedAll(), id] as const,
   },
 }

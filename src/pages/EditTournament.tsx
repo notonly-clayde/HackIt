@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "../lib/queryKeys"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
 import Field, { SelectField } from "../components/ui/Field"
@@ -16,6 +18,13 @@ import TournamentService from "../services/TournamentService"
 const EditTournament = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const queryClient = useQueryClient()
+  const from = (location.state as { from?: string } | null)?.from
+  const fromLobby = from === "lobby"
+  const fromList = from === "list"
+  const returnTo = fromLobby ? `/tournament/${id}/lobby` : fromList ? "/tournament" : `/tournament/${id}`
+  const returnLabel = fromLobby ? "Back to lobby" : fromList ? "Back to tournaments" : "Back to event"
   const { token, profile } = useAuth()
   const toast = useToast()
   const { data: tournament, isLoading, isFetching, error } = useTournamentDetail(id, token)
@@ -88,7 +97,12 @@ const EditTournament = () => {
       return
     }
 
-    navigate(`/tournament/${data.id}`)
+    queryClient.setQueryData(queryKeys.tournaments.detail(data.id), (prev: typeof tournament) =>
+      prev ? { ...prev, ...data } : data,
+    )
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.lists() })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.hostedAll() })
+    navigate(returnTo, { replace: fromLobby || fromList })
   }
 
   const hostError =
@@ -122,8 +136,8 @@ const EditTournament = () => {
 
   return (
     <div className="page-container mt-8 sm:mt-10 max-w-2xl">
-      <Link to={`/tournament/${id}`} className="text-sm text-muted hover:text-highlight transition-colors">
-        ← Back to event
+      <Link to={returnTo} className="text-sm text-muted hover:text-highlight transition-colors">
+        ← {returnLabel}
       </Link>
       <div className="mt-2 flex justify-end">
         <RefreshingIndicator show={isFetching && !isLoading} />
@@ -252,7 +266,7 @@ const EditTournament = () => {
           />
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-            <Link to={`/tournament/${id}`} className="sm:flex-1">
+            <Link to={returnTo} className="sm:flex-1">
               <Button type="button" variant="secondary" className="w-full">
                 Cancel
               </Button>

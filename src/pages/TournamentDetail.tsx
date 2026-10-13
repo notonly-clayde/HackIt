@@ -153,6 +153,7 @@ const TournamentDetail = () => {
     }
 
     void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.lists() })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.hostedAll() })
     navigate("/tournament")
   }
 

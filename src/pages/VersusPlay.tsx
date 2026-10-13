@@ -19,6 +19,7 @@ import {
   subscribeVersusDrawDeclined,
   subscribeVersusDrawOffered,
   subscribeVersusEnded,
+  subscribeVersusIntegrityAlert,
   subscribeVersusMatchFound,
   subscribeVersusRematchOffered,
   subscribeVersusRematchUnavailable,
@@ -152,6 +153,10 @@ const VersusPlay = () => {
       if (payload.matchId !== matchId) return
       setRematchState("gone")
     })
+    const unsubIntegrity = subscribeVersusIntegrityAlert(token, (event) => {
+      if (event.matchId !== matchId) return
+      toast.info(`${event.displayName} left the arena tab (−${event.deduction} ELO penalty)`)
+    })
 
     return () => {
       unsubState()
@@ -162,6 +167,7 @@ const VersusPlay = () => {
       unsubDrawDeclined()
       unsubRematchOffered()
       unsubRematchGone()
+      unsubIntegrity()
     }
   }, [token, matchId, navigate, applyEnded, toast])
 
@@ -300,6 +306,7 @@ const VersusPlay = () => {
         onMatchEnded={applyEnded}
         onLeave={handleLeaveClick}
         matchActions={drawActions}
+        focusIntegrity={{ enabled: matchActive }}
       />
 
       {drawRole === "offered" && matchActive ? (

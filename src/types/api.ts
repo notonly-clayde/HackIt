@@ -151,6 +151,19 @@ export type VersusMatchEnded = {
   solveElapsedMinutes: number | null
 }
 
+export type FocusViolationEvent = {
+  applied: boolean
+  userId: string
+  displayName: string
+  deduction: number
+  totalDeduction: number
+  at: string
+}
+
+export type TournamentFocusViolationEvent = FocusViolationEvent & { tournamentId: string }
+
+export type VersusFocusViolationEvent = FocusViolationEvent & { matchId: string }
+
 export type VersusSubmissionResult = SubmissionResult & {
   matchEnded?: VersusMatchEnded
 }

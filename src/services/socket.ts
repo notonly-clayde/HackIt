@@ -1,14 +1,17 @@
 import { io, type Socket } from "socket.io-client"
 import { getAuthJwt } from "../utils/auth"
 import type {
+  FocusViolationEvent,
   LobbyCountUpdate,
   LobbyState,
   TournamentCatalogUpdate,
   TournamentLiveState,
   TournamentProblemSetUpdate,
+  TournamentFocusViolationEvent,
   TournamentStandings,
   TournamentWorkspaceUpdate,
   VersusDifficulty,
+  VersusFocusViolationEvent,
   VersusMatch,
   VersusMatchEnded,
 } from "../types/api"
@@ -355,6 +358,30 @@ export function subscribeTournamentWorkspaceUpdate(
   }
 }
 
+export type FocusLostAck = ({ ok: true } & FocusViolationEvent) | { ok: false; error: string }
+
+export async function reportTournamentFocusLost(token: string, tournamentId: string): Promise<FocusLostAck> {
+  const client = await ensureLobbySocketConnected(token)
+  return new Promise((resolve) => {
+    client.emit("tournament:integrity:focus-lost", { tournamentId }, (ack: FocusLostAck) => {
+      resolve(ack ?? { ok: false, error: "No response from server" })
+    })
+  })
+}
+
+export function subscribeTournamentIntegrityAlert(
+  token: string,
+  onAlert: (event: TournamentFocusViolationEvent) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: TournamentFocusViolationEvent) => onAlert(event)
+  client.on("tournament:integrity-alert", handle)
+  void ensureLobbySocketConnected(token)
+  return () => {
+    client.off("tournament:integrity-alert", handle)
+  }
+}
+
 export function applyLiveStateToTournament<T extends {
   id: string
   status: TournamentLiveState["status"]
@@ -540,6 +567,26 @@ export async function respondVersusDraw(
       resolve(ack ?? { ok: false, error: "No response from server" })
     })
   })
+}
+
+export async function reportVersusFocusLost(token: string, matchId: string): Promise<FocusLostAck> {
+  const client = await ensureLobbySocketConnected(token)
+  return new Promise((resolve) => {
+    client.emit("versus:integrity:focus-lost", { matchId }, (ack: FocusLostAck) => {
+      resolve(ack ?? { ok: false, error: "No response from server" })
+    })
+  })
+}
+
+export function subscribeVersusIntegrityAlert(
+  token: string,
+  onAlert: (event: VersusFocusViolationEvent) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: VersusFocusViolationEvent) => onAlert(event)
+  client.on("versus:integrity-alert", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("versus:integrity-alert", handle)
 }
 
 export function subscribeVersusRematchOffered(

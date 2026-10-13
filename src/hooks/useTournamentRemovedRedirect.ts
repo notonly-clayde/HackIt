@@ -11,6 +11,8 @@ export function isTournamentMissingMessage(message: string) {
 
 type Options = {
   onRemoved?: () => void
+  /** Return true to ignore removal (e.g. the viewer is deleting it and handles navigation). */
+  suppress?: () => boolean
 }
 
 export function useTournamentRemovedRedirect(
@@ -24,12 +26,14 @@ export function useTournamentRemovedRedirect(
   const queryClient = useQueryClient()
   const handledRef = useRef(false)
   const onRemovedRef = useRef(options?.onRemoved)
+  const suppressRef = useRef(options?.suppress)
 
   onRemovedRef.current = options?.onRemoved
+  suppressRef.current = options?.suppress
 
   const redirectRemoved = useCallback(
     (message: string) => {
-      if (!tournamentId || handledRef.current) return
+      if (!tournamentId || handledRef.current || suppressRef.current?.()) return
       handledRef.current = true
 
       queryClient.removeQueries({ queryKey: queryKeys.tournaments.detail(tournamentId) })

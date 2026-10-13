@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import Badge from "../ui/Badge"
@@ -9,6 +9,7 @@ import { queryKeys } from "../../lib/queryKeys"
 import { STALE_TIME } from "../../lib/queryClient"
 import { unwrap } from "../../lib/unwrap"
 import UserService from "../../services/UserService"
+import { formatRelativeTime } from "../../utils/relativeTime"
 import type {
   ProfileHistoryItem,
   ProfileHistoryKind,
@@ -31,20 +32,6 @@ const emptyCopy: Record<ProfileHistoryKind, { title: string; description: string
 const rowLinkClass =
   "block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight/60"
 
-function formatEndedAt(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime()) || date.getTime() === 0) return ""
-  const diffMs = Date.now() - date.getTime()
-  const mins = Math.floor(diffMs / 60_000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-}
-
 function resultTone(result: ProfileHistoryVersusItem["result"]): "success" | "danger" | "neutral" {
   if (result === "win") return "success"
   if (result === "loss") return "danger"
@@ -61,9 +48,10 @@ type ProfileHistoryListProps = {
   userId: string
   token: string | null
   canReview?: boolean
+  title?: ReactNode
 }
 
-const ProfileHistoryList = ({ userId, token, canReview = false }: ProfileHistoryListProps) => {
+const ProfileHistoryList = ({ userId, token, canReview = false, title = "History" }: ProfileHistoryListProps) => {
   const [kind, setKind] = useState<ProfileHistoryKind>("all")
   const { data = [], isLoading, error } = useQuery({
     queryKey: [...queryKeys.users.history(userId), kind],
@@ -73,10 +61,18 @@ const ProfileHistoryList = ({ userId, token, canReview = false }: ProfileHistory
   })
   useQueryErrorToast(error)
 
+  const plainTitle = typeof title === "string"
+
   return (
     <section className="mt-10 sm:mt-12">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-l-2 border-highlight/40 pl-3">
-        <h2 className="text-accent font-bold text-xl sm:text-2xl tracking-tight">History</h2>
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 mb-5 ${plainTitle ? "border-l-2 border-highlight/40 pl-3" : ""}`}
+      >
+        {plainTitle ? (
+          <h2 className="text-accent font-bold text-xl sm:text-2xl tracking-tight">{title}</h2>
+        ) : (
+          <div className="min-w-0">{title}</div>
+        )}
         <div className="flex items-center gap-3">
           <span className="text-muted text-sm tabular-nums">
             {isLoading ? "…" : `${data.length} recent`}
@@ -165,7 +161,7 @@ function VersusRow({ item, linkOpponent }: { item: ProfileHistoryVersusItem; lin
       </div>
       <KindTag kind="versus" />
       {item.endedAt ? (
-        <span className="text-xs text-muted tabular-nums shrink-0">{formatEndedAt(item.endedAt)}</span>
+        <span className="text-xs text-muted tabular-nums shrink-0">{formatRelativeTime(item.endedAt)}</span>
       ) : null}
     </div>
   )
@@ -190,7 +186,7 @@ function TournamentRow({ item }: { item: ProfileHistoryTournamentItem }) {
         </p>
       </div>
       <KindTag kind="tournament" />
-      <span className="text-xs text-muted tabular-nums shrink-0">{formatEndedAt(item.endedAt)}</span>
+      <span className="text-xs text-muted tabular-nums shrink-0">{formatRelativeTime(item.endedAt)}</span>
     </div>
   )
 }
