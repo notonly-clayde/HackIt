@@ -30,7 +30,12 @@ import { useToast } from "../../contexts/ToastContext"
 import { useContestFreezeSounds } from "../../hooks/useContestFreezeSounds"
 import { useTournamentUrgencySound } from "../../hooks/useTournamentUrgencySound"
 import { useLiveFocusIntegrity, type FocusIntegrityTarget } from "../../hooks/useLiveFocusIntegrity"
-import type { ProblemDetail, TournamentTimerFields, VersusMatchEnded } from "../../types/api"
+import type {
+  ProblemDetail,
+  TournamentTimerFields,
+  VersusMatchEnded,
+  VersusSubmissionResult,
+} from "../../types/api"
 
 function playResultCue(result: PlayRunResultView, play: (cue: "confirm" | "deny") => void) {
   if (result.status === "accepted" || (result.passed > 0 && result.failed === 0)) {
@@ -422,8 +427,9 @@ const PlayArena = ({
     setSubmissionsUnread(false)
     playResultCue(normalized, play)
 
-    if (matchId && "matchEnded" in result && result.matchEnded) {
-      onMatchEnded?.(result.matchEnded)
+    if (matchId) {
+      const matchEnded = (result as VersusSubmissionResult).matchEnded
+      if (matchEnded) onMatchEnded?.(matchEnded)
     }
   }
 
