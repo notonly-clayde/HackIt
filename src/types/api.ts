@@ -124,6 +124,7 @@ export type StandingsEntry = {
   solved: number
   penalty: number
   score: number
+  disqualified: boolean
 }
 
 export type TournamentStandings = {
@@ -150,6 +151,8 @@ export type TournamentModerator = {
   email: string
 }
 
+export type UserLookupItem = TournamentModerator
+
 export type TournamentItem = {
   id: string
   name: string
@@ -175,6 +178,55 @@ export type TournamentItem = {
   pausedTotalMs?: number
   endedAt?: string | null
   viewerRole?: "host" | "player" | "mod" | null
+  viewerDisqualified?: boolean
+  viewerDisqualifyReason?: string | null
+}
+
+export type TournamentWarning = {
+  id: string
+  playerId: string
+  playerDisplayName: string
+  issuedById: string
+  issuedByDisplayName: string
+  reason: string
+  createdAt: string
+}
+
+export type SuspensionRequestStatus = "pending" | "approved" | "rejected"
+
+export type TournamentSuspensionRequest = {
+  id: string
+  playerId: string
+  playerDisplayName: string
+  requestedById: string
+  requestedByDisplayName: string
+  reason: string
+  status: SuspensionRequestStatus
+  decidedById: string | null
+  decidedByDisplayName: string | null
+  decisionNote: string | null
+  decidedAt: string | null
+  createdAt: string
+}
+
+export type TournamentDiscipline = {
+  warnings: TournamentWarning[]
+  suspensionRequests: TournamentSuspensionRequest[]
+}
+
+export type TournamentPlayerWarnedEvent = {
+  tournamentId: string
+  playerId: string
+  reason: string
+  issuedBy: string
+  at: string
+}
+
+export type TournamentPlayerDisqualifiedEvent = {
+  tournamentId: string
+  playerId: string
+  reason: string
+  at: string
 }
 
 export type TournamentProblemItem = {
@@ -330,6 +382,7 @@ export type LobbyPlayer = {
   eloTournament: number
   role: "host" | "mod" | "player"
   joinedAt: string
+  disqualified: boolean
 }
 
 export type LobbyState = {

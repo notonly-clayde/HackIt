@@ -3,8 +3,11 @@ import type {
   CreateTournamentInput,
   CreateProblemInput,
   SubmissionResult,
+  TournamentDiscipline,
   TournamentItem,
   TournamentProblemItem,
+  TournamentSuspensionRequest,
+  TournamentWarning,
   TournamentStandings,
   MyTournamentWorkspace,
   PlayerWorkspaceView,
@@ -185,6 +188,48 @@ class TournamentService extends ApiService {
     return this.requestWithAuth<PlayerWorkspaceView>(
       `/api/tournaments/${tournamentId}/workspace/players/${userId}${qs}`,
       token,
+    )
+  }
+
+  async getDiscipline(token: string | null, tournamentId: string) {
+    return this.requestWithAuth<TournamentDiscipline>(`/api/tournaments/${tournamentId}/discipline`, token)
+  }
+
+  async warnPlayer(token: string | null, tournamentId: string, userId: string, reason: string) {
+    return this.requestWithAuth<TournamentWarning>(
+      `/api/tournaments/${tournamentId}/players/${userId}/warnings`,
+      token,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    )
+  }
+
+  async requestSuspension(token: string | null, tournamentId: string, userId: string, reason: string) {
+    return this.requestWithAuth<TournamentSuspensionRequest>(
+      `/api/tournaments/${tournamentId}/players/${userId}/suspension-requests`,
+      token,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    )
+  }
+
+  async disqualifyPlayer(token: string | null, tournamentId: string, userId: string, reason: string) {
+    return this.requestWithAuth<TournamentSuspensionRequest>(
+      `/api/tournaments/${tournamentId}/players/${userId}/disqualify`,
+      token,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    )
+  }
+
+  async decideSuspension(
+    token: string | null,
+    tournamentId: string,
+    requestId: string,
+    decision: "approve" | "reject",
+    note?: string,
+  ) {
+    return this.requestWithAuth<TournamentSuspensionRequest>(
+      `/api/tournaments/${tournamentId}/suspension-requests/${requestId}/${decision}`,
+      token,
+      { method: "POST", body: JSON.stringify(note ? { note } : {}) },
     )
   }
 

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import ReportButton from "../moderation/ReportButton"
+import Badge from "../ui/Badge"
 import type { TournamentStandings } from "../../types/api"
 
 type StandingsTableProps = {
@@ -38,8 +39,10 @@ const StandingsTable = ({
           </tr>
         ) : (
           entries.map((entry) => (
-            <tr key={entry.userId}>
-              <td className="tabular-nums">{entry.rank}</td>
+            <tr key={entry.userId} className={entry.disqualified ? "opacity-60" : undefined}>
+              <td className="tabular-nums">
+                {entry.disqualified ? <Badge tone="danger">DQ</Badge> : entry.rank}
+              </td>
               <td>
                 <Link to={`/u/${entry.userId}`} className="text-accent hover:text-highlight hover:underline">
                   {entry.displayName}

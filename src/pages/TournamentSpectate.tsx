@@ -10,10 +10,13 @@ import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import TournamentTimer from "../components/tournament/TournamentTimer"
 import HostLeaderboard from "../components/tournament/HostLeaderboard"
 import HostCodeViewer from "../components/tournament/HostCodeViewer"
+import DisciplinePanel from "../components/tournament/DisciplinePanel"
+import PlayerDisciplineActions from "../components/tournament/PlayerDisciplineActions"
 import TournamentProblemSet from "../components/problems/TournamentProblemSet"
 import TournamentProblemList from "../components/problems/TournamentProblemList"
 import TournamentService from "../services/TournamentService"
 import {
+  subscribeTournamentDisciplineUpdate,
   subscribeTournamentIntegrityAlert,
   subscribeTournamentWorkspaceUpdate,
   watchTournament,
@@ -31,6 +34,7 @@ import { useTournamentUrgencySound } from "../hooks/useTournamentUrgencySound"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import {
   useTournamentDetail,
+  useTournamentDiscipline,
   useTournamentProblems,
   useTournamentStandings,
 } from "../hooks/queries/useTournamentQueries"
@@ -72,6 +76,7 @@ const TournamentSpectate = () => {
   )
   const isMod = tournament?.viewerRole === "mod"
   const canWatchAsStaff = isHost || isMod
+  const { data: discipline } = useTournamentDiscipline(id, token, canWatchAsStaff && showLiveData)
 
   const { contestFrozen, isResuming, secondsLeft } = useResumeCountdown({
     pausedAt: tournament?.pausedAt,
@@ -171,6 +176,15 @@ const TournamentSpectate = () => {
     })
   }, [token, id, canWatchAsStaff, toast])
 
+  useEffect(() => {
+    if (!token || !id || !canWatchAsStaff) return
+
+    return subscribeTournamentDisciplineUpdate(token, (event) => {
+      if (event.tournamentId !== id) return
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.discipline(id) })
+    })
+  }, [token, id, canWatchAsStaff, queryClient])
+
   useTournamentLiveStateSocket(token, id)
   useTournamentStandingsLiveSocket(token, id)
   useTournamentProblemSetSocket(token, id)
@@ -264,7 +278,7 @@ const TournamentSpectate = () => {
   const isPaused = contestFrozen
   const resumeScheduled = isResuming && secondsLeft != null
   const resumeCountdownActive = resumeScheduled && secondsLeft > 0
-  const canEnterPlay = isLive && (tournament.viewerRole === "player" || tournament.viewerRole === "mod")
+  const canEnterPlay = isLive && tournament.viewerRole === "player" && !tournament.viewerDisqualified
 
   const kicker = isEnded
     ? "Recording"
@@ -278,7 +292,11 @@ const TournamentSpectate = () => {
     ? "Final standings from recorded submissions."
     : isHost
       ? "Manage the live tournament and monitor player code."
-      : "Live leaderboard updates when players submit."
+      : isMod
+        ? "Monitor player code and integrity alerts. Warn players or request a suspension from the host."
+        : "Live leaderboard updates when players submit."
+
+  const selectedEntry = standings?.entries.find((entry) => entry.userId === selectedUserId) ?? null
 
   return (
     <div className="page-container mt-8 sm:mt-10">
@@ -371,6 +389,16 @@ const TournamentSpectate = () => {
         </Card>
       )}
 
+      {canWatchAsStaff && id && (isLive || isEnded) && (
+        <DisciplinePanel
+          tournamentId={id}
+          token={token}
+          isHost={isHost}
+          canDecide={isLive}
+          discipline={discipline}
+        />
+      )}
+
       {(isLive || isEnded) &&
         (contestFrozen && id && isHost ? (
           <TournamentProblemSet
@@ -406,6 +434,20 @@ const TournamentSpectate = () => {
         </Card>
 
         <Card className="p-5 sm:p-6 min-h-[480px]">
+          {canWatchAsStaff && isLive && id && selectedEntry && (
+            <div className="mb-4 pb-4 border-b border-border">
+              <PlayerDisciplineActions
+                tournamentId={id}
+                token={token}
+                staffRole={isHost ? "host" : "mod"}
+                player={{
+                  userId: selectedEntry.userId,
+                  displayName: selectedEntry.displayName,
+                  disqualified: selectedEntry.disqualified,
+                }}
+              />
+            </div>
+          )}
           {selectedUserId && playerWorkspace ? (
             <HostCodeViewer
               displayName={playerWorkspace.displayName}

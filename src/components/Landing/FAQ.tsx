@@ -42,6 +42,11 @@ const sampleQuestion = [
       "Yes. Verified users can create public or private tournaments, set a schedule, add moderators, and start manually or when a target player count is reached.",
   },
   {
+    question: "What do tournament moderators do?",
+    answer:
+      "Moderators don't compete. During a live tournament they monitor rankings, players' code, and tab-switch alerts, warn players, and request suspensions. The host approves or rejects each request and can also disqualify players directly.",
+  },
+  {
     question: "I forgot my password. What should I do?",
     answer: "Use the Forgot Password option on the login page to reset your password through your registered email address.",
   },

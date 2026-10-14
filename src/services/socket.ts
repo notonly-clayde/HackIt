@@ -8,6 +8,8 @@ import type {
   TournamentLiveState,
   TournamentProblemSetUpdate,
   TournamentFocusViolationEvent,
+  TournamentPlayerDisqualifiedEvent,
+  TournamentPlayerWarnedEvent,
   TournamentStandings,
   TournamentWorkspaceUpdate,
   VersusDifficulty,
@@ -379,6 +381,45 @@ export function subscribeTournamentIntegrityAlert(
   void ensureLobbySocketConnected(token)
   return () => {
     client.off("tournament:integrity-alert", handle)
+  }
+}
+
+export function subscribeTournamentPlayerWarned(
+  token: string,
+  onWarned: (event: TournamentPlayerWarnedEvent) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: TournamentPlayerWarnedEvent) => onWarned(event)
+  client.on("tournament:player-warned", handle)
+  void ensureLobbySocketConnected(token)
+  return () => {
+    client.off("tournament:player-warned", handle)
+  }
+}
+
+export function subscribeTournamentPlayerDisqualified(
+  token: string,
+  onDisqualified: (event: TournamentPlayerDisqualifiedEvent) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: TournamentPlayerDisqualifiedEvent) => onDisqualified(event)
+  client.on("tournament:player-disqualified", handle)
+  void ensureLobbySocketConnected(token)
+  return () => {
+    client.off("tournament:player-disqualified", handle)
+  }
+}
+
+export function subscribeTournamentDisciplineUpdate(
+  token: string,
+  onUpdate: (event: { tournamentId: string }) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: { tournamentId: string }) => onUpdate(event)
+  client.on("tournament:discipline-update", handle)
+  void ensureLobbySocketConnected(token)
+  return () => {
+    client.off("tournament:discipline-update", handle)
   }
 }
 

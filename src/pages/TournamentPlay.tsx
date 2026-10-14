@@ -1,10 +1,22 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import PlayArena from "../components/play/PlayArena"
+import Button from "../components/ui/Button"
+import Modal from "../components/ui/Modal"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import TournamentService from "../services/TournamentService"
-import { reconnectLobby, watchTournament } from "../services/socket"
+import {
+  reconnectLobby,
+  subscribeTournamentPlayerDisqualified,
+  subscribeTournamentPlayerWarned,
+  watchTournament,
+} from "../services/socket"
 import { useAuth } from "../contexts/AuthContext"
+import { useHudSound } from "../contexts/SoundContext"
+import { useToast } from "../contexts/ToastContext"
+import { queryKeys } from "../lib/queryKeys"
+import type { TournamentPlayerWarnedEvent } from "../types/api"
 import { useResumeCountdown } from "../hooks/useResumeCountdown"
 import { useTournamentTimer } from "../hooks/useTournamentTimer"
 import {
@@ -21,6 +33,10 @@ const TournamentPlay = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { token } = useAuth()
+  const toast = useToast()
+  const { play } = useHudSound()
+  const queryClient = useQueryClient()
+  const [warning, setWarning] = useState<TournamentPlayerWarnedEvent | null>(null)
   const wasFrozenRef = useRef(false)
   const redirectedRef = useRef(false)
 
@@ -75,11 +91,22 @@ const TournamentPlay = () => {
       return
     }
 
-    if (tournament.viewerRole !== "player" && tournament.viewerRole !== "mod") {
+    if (tournament.viewerRole !== "player") {
       redirectedRef.current = true
       navigate(`/tournament/${id}/spectate`, { replace: true })
+      return
     }
-  }, [tournament, id, navigate])
+
+    if (tournament.viewerDisqualified) {
+      redirectedRef.current = true
+      toast.error(
+        tournament.viewerDisqualifyReason
+          ? `You were disqualified: ${tournament.viewerDisqualifyReason}`
+          : "You were disqualified from this tournament",
+      )
+      navigate(`/tournament/${id}`, { replace: true })
+    }
+  }, [tournament, id, navigate, toast])
 
   useEffect(() => {
     if (!token || !id || !tournament) return
@@ -93,7 +120,7 @@ const TournamentPlay = () => {
 
   useEffect(() => {
     if (!token || !id || !tournament) return
-    if (tournament.viewerRole !== "player" && tournament.viewerRole !== "mod") return
+    if (tournament.viewerRole !== "player" || tournament.viewerDisqualified) return
     void reconnectLobby(token, id)
   }, [token, id, tournament])
 
@@ -101,6 +128,30 @@ const TournamentPlay = () => {
     if (!token || !id) return
     return watchTournament(token, id)
   }, [token, id])
+
+  useEffect(() => {
+    if (!token || !id) return
+
+    const unsubscribeWarned = subscribeTournamentPlayerWarned(token, (event) => {
+      if (event.tournamentId !== id) return
+      play("alert")
+      setWarning(event)
+    })
+
+    const unsubscribeDisqualified = subscribeTournamentPlayerDisqualified(token, (event) => {
+      if (event.tournamentId !== id) return
+      play("defeat")
+      toast.error(`You were disqualified: ${event.reason}`)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.detail(id) })
+      redirectedRef.current = true
+      navigate(`/tournament/${id}/spectate`, { replace: true })
+    })
+
+    return () => {
+      unsubscribeWarned()
+      unsubscribeDisqualified()
+    }
+  }, [token, id, navigate, play, queryClient, toast])
 
   useTournamentLiveStateSocket(token, id, () => {
     if (id) navigate(`/tournament/${id}/spectate`, { replace: true })
@@ -118,23 +169,43 @@ const TournamentPlay = () => {
   }
 
   return (
-    <PlayArena
-      backTo={`/tournament/${id}`}
-      backLabel="Event"
-      modeLabel={tournament.name}
-      title={tournament.name}
-      problems={problems}
-      timerFields={timerFields}
-      contestFrozen={contestFrozen}
-      contestTimeExpired={contestTimeExpired}
-      resumeCountdownSeconds={isResuming ? secondsLeft : null}
-      authToken={token}
-      tournamentId={id}
-      focusIntegrity={{
-        enabled: tournament.status === "Live" && !contestTimeExpired,
-        paused: contestFrozen,
-      }}
-    />
+    <>
+      <PlayArena
+        backTo={`/tournament/${id}`}
+        backLabel="Event"
+        modeLabel={tournament.name}
+        title={tournament.name}
+        problems={problems}
+        timerFields={timerFields}
+        contestFrozen={contestFrozen}
+        contestTimeExpired={contestTimeExpired}
+        resumeCountdownSeconds={isResuming ? secondsLeft : null}
+        authToken={token}
+        tournamentId={id}
+        focusIntegrity={{
+          enabled: tournament.status === "Live" && !contestTimeExpired,
+          paused: contestFrozen,
+        }}
+      />
+      <Modal
+        open={warning !== null}
+        onClose={() => setWarning(null)}
+        kicker="Moderator warning"
+        title="You received a warning"
+        description={warning ? `From ${warning.issuedBy} at ${new Date(warning.at).toLocaleTimeString()}` : undefined}
+        size="sm"
+        footer={
+          <Button variant="primary" onClick={() => setWarning(null)}>
+            I understand
+          </Button>
+        }
+      >
+        <p className="text-sm text-accent whitespace-pre-wrap break-words">{warning?.reason}</p>
+        <p className="text-xs text-muted">
+          Repeated violations can lead to a suspension request and disqualification from this tournament.
+        </p>
+      </Modal>
+    </>
   )
 }
 

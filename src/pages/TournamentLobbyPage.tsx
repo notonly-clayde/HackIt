@@ -118,10 +118,12 @@ const TournamentLobbyPage = () => {
   }, [id])
 
   const isHost = Boolean(profile && tournament && tournament.hostId === profile.id)
+  const isMod = Boolean(profile && tournament?.moderators.some((mod) => mod.id === profile.id))
+  const isStaff = isHost || isMod
 
   useEffect(() => {
-    isHostRef.current = isHost
-  }, [isHost])
+    isHostRef.current = isStaff
+  }, [isStaff])
 
   const goToLiveDestination = useCallback(() => {
     if (!id) return
@@ -154,7 +156,7 @@ const TournamentLobbyPage = () => {
   // The cached detail was fetched before joining, so the play page would otherwise
   // treat this user as a non-participant and bounce them to spectate on start.
   const patchViewerRole = useCallback(
-    (viewerRole: "player" | "mod" | null) => {
+    (viewerRole: "player" | null) => {
       if (!id) return
       queryClient.setQueryData(queryKeys.tournaments.detail(id), (prev: typeof tournament) =>
         prev ? { ...prev, viewerRole } : prev,
@@ -196,8 +198,7 @@ const TournamentLobbyPage = () => {
         joinedRef.current = true
         pendingLobbyPasswords.delete(id)
         patchPlayerCount(ack.state.playerCount, ack.state.maxPlayers)
-        const self = ack.state.players.find((player) => player.id === profile?.id)
-        patchViewerRole(self?.role === "mod" ? "mod" : "player")
+        patchViewerRole("player")
       } catch (joinErr) {
         const message = joinErr instanceof Error ? joinErr.message : "Failed to join lobby"
         setError(message)
@@ -208,7 +209,7 @@ const TournamentLobbyPage = () => {
         setJoining(false)
       }
     },
-    [id, token, profile?.id, patchPlayerCount, patchViewerRole, toast],
+    [id, token, patchPlayerCount, patchViewerRole, toast],
   )
 
   const attemptWatch = useCallback(async () => {
@@ -272,9 +273,7 @@ const TournamentLobbyPage = () => {
 
     if (tournament.status === "Live") {
       enteringLiveRef.current = true
-      if (tournament.viewerRole === "host" || tournament.hostId === profile?.id) {
-        navigate(`/tournament/${id}/spectate`, { replace: true })
-      } else if (tournament.viewerRole === "player" || tournament.viewerRole === "mod") {
+      if (tournament.viewerRole === "player" && !tournament.viewerDisqualified) {
         navigate(`/tournament/${id}/play`, { replace: true })
       } else {
         navigate(`/tournament/${id}/spectate`, { replace: true })
@@ -295,9 +294,10 @@ const TournamentLobbyPage = () => {
     }
 
     lobbyJoinInitiated.add(id)
-    const hostUser = tournament.hostId === profile?.id
+    const staffUser =
+      tournament.hostId === profile?.id || tournament.moderators.some((mod) => mod.id === profile?.id)
 
-    if (hostUser) {
+    if (staffUser) {
       void attemptWatch()
       return
     }
@@ -445,7 +445,7 @@ const TournamentLobbyPage = () => {
     )
   }
 
-  if ((queryError && !tournament) || (error && !lobbyState && !isHost)) {
+  if ((queryError && !tournament) || (error && !lobbyState && !isStaff)) {
     return (
       <div className="page-container mt-10">
         <EmptyState
@@ -493,7 +493,7 @@ const TournamentLobbyPage = () => {
 
       <div className="mt-4 text-center sm:text-left border-l-0 sm:border-l-2 sm:border-highlight/50 sm:pl-4">
         <p className="ui-kicker mb-2 justify-center sm:justify-start">
-          {isHost ? "Host staging" : "Staging lobby"}
+          {isHost ? "Host staging" : isMod ? "Moderator view" : "Staging lobby"}
         </p>
         <div className="flex items-start justify-center sm:justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold text-accent tracking-tight">{tournament.name}</h1>
@@ -522,7 +522,9 @@ const TournamentLobbyPage = () => {
         <p className="text-muted text-sm mt-2">
           {isHost
             ? "Manage the lobby and start the tournament when ready. You will not join as a player."
-            : "Waiting for the tournament to start. "}
+            : isMod
+              ? "You are moderating this tournament. Once it starts you will monitor players from the mod dashboard. "
+              : "Waiting for the tournament to start. "}
           {!isHost &&
             (tournament.startMode === "auto"
               ? `Auto-starts at ${tournament.maxPlayers} players.`
@@ -557,7 +559,7 @@ const TournamentLobbyPage = () => {
               </Link>
             )}
 
-            {!isHost && (
+            {!isStaff && (
               <Button variant="ghost" onClick={handleLeave} disabled={leaving}>
                 {leaving ? "Leaving…" : "Leave lobby"}
               </Button>
@@ -569,8 +571,8 @@ const TournamentLobbyPage = () => {
           <EmptyState
             title="No players in lobby yet"
             description={
-              isHost
-                ? "Share the event link so players can join before you start."
+              isStaff
+                ? "Share the event link so players can join before the tournament starts."
                 : "Be the first to join, or wait for others to arrive."
             }
           />

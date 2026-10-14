@@ -1,3 +1,4 @@
+import Badge from "../ui/Badge"
 import type { TournamentStandings } from "../../types/api"
 
 type HostLeaderboardProps = {
@@ -34,12 +35,14 @@ const HostLeaderboard = ({ standings, selectedUserId, onSelect }: HostLeaderboar
               selected
                 ? "border-highlight bg-highlight/10"
                 : "border-border bg-surface/40 hover:border-highlight/40 hover:bg-surface/70"
-            }`}
+            } ${entry.disqualified ? "opacity-60" : ""}`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs text-muted tabular-nums mb-0.5">{entry.rank}</p>
-                <p className="text-accent font-medium truncate">
+                <p className="text-xs text-muted tabular-nums mb-0.5">
+                  {entry.disqualified ? <Badge tone="danger">DQ</Badge> : entry.rank}
+                </p>
+                <p className={`text-accent font-medium truncate ${entry.disqualified ? "line-through" : ""}`}>
                   {entry.displayName}{" "}
                   <span className="text-muted font-normal">({shortPlayerId(entry.userId)})</span>
                 </p>

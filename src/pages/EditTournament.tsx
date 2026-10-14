@@ -9,11 +9,13 @@ import EmptyState from "../components/ui/EmptyState"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import TournamentProblemSet from "../components/problems/TournamentProblemSet"
+import ModeratorPicker from "../components/tournament/ModeratorPicker"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { useTournamentDetail } from "../hooks/queries/useTournamentQueries"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import TournamentService from "../services/TournamentService"
+import type { TournamentModerator } from "../types/api"
 
 const EditTournament = () => {
   const { id } = useParams()
@@ -39,7 +41,7 @@ const EditTournament = () => {
   const [startMode, setStartMode] = useState<"manual" | "auto">("manual")
   const [capacity, setCapacity] = useState("16")
   const [durationMinutes, setDurationMinutes] = useState("60")
-  const [mods, setMods] = useState("")
+  const [mods, setMods] = useState<TournamentModerator[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
@@ -54,7 +56,7 @@ const EditTournament = () => {
     setStartMode(tournament.startMode)
     setCapacity(String(tournament.maxPlayers))
     setDurationMinutes(String(tournament.durationMinutes))
-    setMods(tournament.moderators.map((m) => m.email).join(", "))
+    setMods(tournament.moderators)
     setSchedule(tournament.status === "Open" ? "now" : "later")
     if (tournament.scheduledAt) {
       const local = new Date(tournament.scheduledAt)
@@ -72,10 +74,7 @@ const EditTournament = () => {
 
     setSubmitting(true)
 
-    const moderatorEmails = mods
-      .split(",")
-      .map((email) => email.trim())
-      .filter(Boolean)
+    const moderatorEmails = mods.map((mod) => mod.email)
 
     const [data, err] = await TournamentService.update(token, id, {
       name: name.trim(),
@@ -258,11 +257,10 @@ const EditTournament = () => {
             />
           </div>
 
-          <Field
-            label="Moderators"
+          <ModeratorPicker
             value={mods}
-            onChange={(e) => setMods(e.target.value)}
-            placeholder="emails, comma-separated"
+            onChange={setMods}
+            hint="Mods must already have HackIT accounts with verified emails."
           />
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">

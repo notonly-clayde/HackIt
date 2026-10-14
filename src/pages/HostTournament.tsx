@@ -7,8 +7,10 @@ import Button from "../components/ui/Button"
 import Field, { SelectField } from "../components/ui/Field"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
+import ModeratorPicker from "../components/tournament/ModeratorPicker"
 import TournamentService from "../services/TournamentService"
 import { queryKeys } from "../lib/queryKeys"
+import type { TournamentModerator } from "../types/api"
 
 const HostTournament = () => {
   const navigate = useNavigate()
@@ -24,17 +26,14 @@ const HostTournament = () => {
   const [startMode, setStartMode] = useState<"manual" | "auto">("manual")
   const [capacity, setCapacity] = useState("16")
   const [durationMinutes, setDurationMinutes] = useState("60")
-  const [mods, setMods] = useState("")
+  const [mods, setMods] = useState<TournamentModerator[]>([])
   const [submitting, setSubmitting] = useState(false)
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
 
-    const moderatorEmails = mods
-      .split(",")
-      .map((email) => email.trim())
-      .filter(Boolean)
+    const moderatorEmails = mods.map((mod) => mod.email)
 
     const [data, err] = await TournamentService.create(token, {
       name: name.trim(),
@@ -178,11 +177,9 @@ const HostTournament = () => {
               />
             </div>
 
-            <Field
-              label="Moderators"
+            <ModeratorPicker
               value={mods}
-              onChange={(e) => setMods(e.target.value)}
-              placeholder="emails, comma-separated"
+              onChange={setMods}
               hint="Mods must already have HackIT accounts with verified emails."
             />
 

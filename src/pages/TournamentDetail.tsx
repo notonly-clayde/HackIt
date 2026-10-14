@@ -96,7 +96,10 @@ const TournamentDetail = () => {
   const isOpen = tournament.status === "Open"
   const isEditable = tournament.status === "Open" || tournament.status === "Soon"
   const isHost = Boolean(profile && tournament.hostId === profile.id)
-  const isParticipant = tournament.viewerRole === "player" || tournament.viewerRole === "mod"
+  const isMod = tournament.viewerRole === "mod"
+  const isDisqualified = Boolean(tournament.viewerDisqualified)
+  const isParticipant = tournament.viewerRole === "player" && !isDisqualified
+  const isStaff = isHost || isMod
 
   const goToLobby = (password?: string) => {
     const verifiedPassword = typeof password === "string" && password.trim() ? password.trim() : undefined
@@ -107,7 +110,7 @@ const TournamentDetail = () => {
   }
 
   const handleJoinLobby = () => {
-    if (tournament.passwordProtected && !isHost) {
+    if (tournament.passwordProtected && !isStaff) {
       setPasswordOpen(true)
       setLobbyPassword("")
       setPasswordError(null)
@@ -188,6 +191,12 @@ const TournamentDetail = () => {
               Mods: {tournament.moderators.map((m) => m.displayName).join(", ")}
             </p>
           )}
+          {isDisqualified && (
+            <p className="text-sm text-danger mt-3">
+              You were disqualified from this tournament
+              {tournament.viewerDisqualifyReason ? `: ${tournament.viewerDisqualifyReason}` : "."}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -207,6 +216,10 @@ const TournamentDetail = () => {
               <Button variant="primary" onClick={() => goToLobby()}>
                 Manage lobby
               </Button>
+            ) : isMod ? (
+              <Button variant="primary" onClick={() => goToLobby()}>
+                Open mod view
+              </Button>
             ) : (
               <Button variant="primary" onClick={handleJoinLobby}>
                 Join lobby
@@ -220,12 +233,17 @@ const TournamentDetail = () => {
                   <Button variant="primary">Manage event</Button>
                 </Link>
               )}
+              {isMod && (
+                <Link to={`/tournament/${tournament.id}/spectate`}>
+                  <Button variant="primary">Mod dashboard</Button>
+                </Link>
+              )}
               {isParticipant && (
                 <Link to={`/tournament/${tournament.id}/play`}>
                   <Button variant="primary">Enter play</Button>
                 </Link>
               )}
-              {!isHost && !isParticipant && (
+              {!isStaff && !isParticipant && (
                 <Link to={`/tournament/${tournament.id}/spectate`}>
                   <Button variant="primary">Spectate</Button>
                 </Link>

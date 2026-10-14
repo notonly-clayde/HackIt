@@ -22,6 +22,7 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.tournaments.details(), id] as const,
     standings: (id: string) => [...queryKeys.tournaments.all, "standings", id] as const,
     problems: (id: string) => [...queryKeys.tournaments.all, "problems", id] as const,
+    discipline: (id: string) => [...queryKeys.tournaments.all, "discipline", id] as const,
     workspace: (id: string) => [...queryKeys.tournaments.all, "workspace", id] as const,
     playerWorkspace: (tournamentId: string, userId: string, problemId?: string) =>
       [...queryKeys.tournaments.all, "playerWorkspace", tournamentId, userId, problemId ?? ""] as const,

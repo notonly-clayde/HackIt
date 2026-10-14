@@ -79,6 +79,20 @@ export function useTournamentProblems(
   })
 }
 
+export function useTournamentDiscipline(
+  id: string | undefined,
+  token: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.tournaments.discipline(id ?? ""),
+    queryFn: async () => unwrap(await TournamentService.getDiscipline(token, id!)),
+    enabled: Boolean(id) && Boolean(token) && enabled,
+    staleTime: STALE_TIME.live,
+    placeholderData: keepPreviousData,
+  })
+}
+
 export function prefetchTournamentList(queryClient: QueryClient) {
   return queryClient.prefetchQuery({
     queryKey: queryKeys.tournaments.list({}),

@@ -6,6 +6,7 @@ import type {
   PublicUserProfile,
   TournamentItem,
   UpdateUserProfileInput,
+  UserLookupItem,
   UserProfile,
 } from "../types/api"
 
@@ -23,6 +24,13 @@ class UserService extends ApiService {
 
   async getPublic(token: string | null, id: string) {
     return this.requestWithAuth<PublicUserProfile>(`/api/users/${id}`, token)
+  }
+
+  async lookup(token: string | null, query: string) {
+    return this.requestWithAuth<UserLookupItem[]>(
+      `/api/users/lookup?q=${encodeURIComponent(query)}`,
+      token,
+    )
   }
 
   async listHistory(token: string | null, userId: string, kind: ProfileHistoryKind, limit = 20) {
