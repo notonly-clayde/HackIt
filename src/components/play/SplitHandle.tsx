@@ -35,6 +35,7 @@ const SplitHandle = ({ direction, className = "", ...props }: SplitHandleProps) 
   return (
     <Separator
       {...props}
+      data-hud-hover="off"
       onPointerDown={(event) => {
         draggingRef.current = true
         props.onPointerDown?.(event)

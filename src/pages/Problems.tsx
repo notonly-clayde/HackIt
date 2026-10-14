@@ -10,6 +10,7 @@ import Field, { SelectField } from "../components/ui/Field"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import { useAuth } from "../contexts/AuthContext"
+import { useHudSound } from "../contexts/SoundContext"
 import { prefetchProblemDetail, useProblemCatalog } from "../hooks/queries/useProblemQueries"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import type { ProblemDifficulty } from "../types/api"
@@ -22,6 +23,7 @@ const difficultyTone = {
 
 const Problems = () => {
   const { token } = useAuth()
+  const { play } = useHudSound()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [difficulty, setDifficulty] = useState<"" | ProblemDifficulty>("")
@@ -54,14 +56,14 @@ const Problems = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/problems/mine">
-            <Button variant="secondary">
+          <Link to="/problems/mine" onClick={() => play("link")}>
+            <Button variant="secondary" sound={false}>
               <HiOutlineDocumentText className="h-4 w-4" />
               My problems
             </Button>
           </Link>
-          <Link to="/problems/new">
-            <Button variant="primary">
+          <Link to="/problems/new" onClick={() => play("link")}>
+            <Button variant="primary" sound={false}>
               <HiOutlinePlus className="h-4 w-4" />
               Author problem
             </Button>
@@ -112,14 +114,14 @@ const Problems = () => {
                 <p className="text-sm text-muted">By {problem.author}</p>
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
-                <Link to={`/problems/${problem.id}/preview`}>
-                  <Button variant="secondary">
+                <Link to={`/problems/${problem.id}/preview`} onClick={() => play("link")}>
+                  <Button variant="secondary" sound={false}>
                     <HiOutlineEye className="h-4 w-4" />
                     Preview
                   </Button>
                 </Link>
-                <Link to={`/problems/${problem.id}`}>
-                  <Button variant="primary">
+                <Link to={`/problems/${problem.id}`} onClick={() => play("link")}>
+                  <Button variant="primary" sound={false}>
                     <HiOutlinePlay className="h-4 w-4" />
                     Practice
                   </Button>

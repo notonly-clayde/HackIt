@@ -1,6 +1,14 @@
 import { useState } from "react"
 import { Link, Navigate, useParams } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import type { ReactNode } from "react"
+import {
+  HiOutlineArrowDownCircle,
+  HiOutlineArrowUpCircle,
+  HiOutlineCheckCircle,
+  HiOutlineExclamationTriangle,
+  HiOutlineNoSymbol,
+} from "react-icons/hi2"
 import Badge from "../components/ui/Badge"
 import Button from "../components/ui/Button"
 import Card from "../components/ui/Card"
@@ -16,6 +24,96 @@ import { queryKeys } from "../lib/queryKeys"
 import { unwrap } from "../lib/unwrap"
 import { STALE_TIME } from "../lib/queryClient"
 import AdminService from "../services/AdminService"
+import type { ModerationActionItem } from "../types/api"
+import { formatRelativeTime } from "../utils/relativeTime"
+
+const actionMeta: Record<
+  ModerationActionItem["type"],
+  { label: string; icon: ReactNode; tone: "warn" | "danger" | "success" | "neutral"; iconClass: string }
+> = {
+  warn: {
+    label: "Warned",
+    icon: <HiOutlineExclamationTriangle className="h-4 w-4" />,
+    tone: "warn",
+    iconClass: "!bg-amber-400/15 !text-amber-300",
+  },
+  suspend: {
+    label: "Suspended",
+    icon: <HiOutlineNoSymbol className="h-4 w-4" />,
+    tone: "danger",
+    iconClass: "!bg-danger-soft !text-danger",
+  },
+  unsuspend: {
+    label: "Unsuspended",
+    icon: <HiOutlineCheckCircle className="h-4 w-4" />,
+    tone: "success",
+    iconClass: "",
+  },
+  promote: {
+    label: "Promoted to admin",
+    icon: <HiOutlineArrowUpCircle className="h-4 w-4" />,
+    tone: "success",
+    iconClass: "",
+  },
+  demote: {
+    label: "Demoted to user",
+    icon: <HiOutlineArrowDownCircle className="h-4 w-4" />,
+    tone: "neutral",
+    iconClass: "!bg-secondary/40 !text-midtone",
+  },
+}
+
+const ModerationTimeline = ({ history }: { history: ModerationActionItem[] }) => (
+  <ol className="relative">
+    {history.map((action, index) => {
+      const meta = actionMeta[action.type]
+      const isLast = index === history.length - 1
+      return (
+        <li key={action.id} className="relative flex gap-4 pb-5 last:pb-0">
+          {!isLast ? (
+            <span className="absolute left-[1.125rem] top-10 bottom-0 w-px bg-border" aria-hidden />
+          ) : null}
+          <div className={`ui-icon-box !h-9 !w-9 ${meta.iconClass}`}>{meta.icon}</div>
+          <div className="min-w-0 flex-1 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={meta.tone}>{action.type}</Badge>
+                <span className="text-sm font-semibold text-accent">{meta.label}</span>
+              </div>
+              <time
+                dateTime={action.createdAt}
+                title={new Date(action.createdAt).toLocaleString()}
+                className="text-xs tabular-nums text-muted"
+              >
+                {formatRelativeTime(action.createdAt)}
+              </time>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              by{" "}
+              <Link to={`/admin/users/${action.actorId}`} className="text-midtone hover:text-highlight hover:underline">
+                {action.actorDisplayName}
+              </Link>
+              {" · "}
+              {new Date(action.createdAt).toLocaleString()}
+            </p>
+            {action.note ? (
+              <blockquote className="mt-2 border-l-2 border-highlight/40 bg-secondary/20 px-3 py-2 text-sm text-accent/90 whitespace-pre-wrap break-words">
+                {action.note}
+              </blockquote>
+            ) : null}
+            {action.type === "warn" ? (
+              <p className="mt-2 text-xs text-muted">
+                {action.acknowledgedAt
+                  ? `Acknowledged ${formatRelativeTime(action.acknowledgedAt)}`
+                  : "Not yet acknowledged"}
+              </p>
+            ) : null}
+          </div>
+        </li>
+      )
+    })}
+  </ol>
+)
 
 const AdminUserDetail = () => {
   const { id } = useParams()
@@ -60,6 +158,7 @@ const AdminUserDetail = () => {
 
   const user = data.user
   const isSelf = profile?.id === user.id
+  const isSuperAdmin = data.isSuperAdmin
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.admin.user(user.id) })
@@ -156,7 +255,13 @@ const AdminUserDetail = () => {
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge tone={user.role === "admin" ? "live" : "neutral"}>{user.role}</Badge>
             <Badge tone={user.status === "suspended" ? "danger" : "success"}>{user.status}</Badge>
+            {isSuperAdmin ? <Badge tone="warn">Super admin</Badge> : null}
           </div>
+          {isSuperAdmin ? (
+            <p className="mt-2 text-xs text-muted">
+              Super admins are configured on the server and can&apos;t be demoted or suspended.
+            </p>
+          ) : null}
           {user.suspendReason ? (
             <p className="mt-2 text-sm text-danger">Suspended: {user.suspendReason}</p>
           ) : null}
@@ -174,12 +279,12 @@ const AdminUserDetail = () => {
                 <Button variant="primary" disabled={busy} onClick={() => void handleUnsuspend()}>
                   Unsuspend
                 </Button>
-              ) : (
+              ) : isSuperAdmin ? null : (
                 <Button variant="danger" disabled={busy} onClick={() => { setNote(""); setSuspendOpen(true) }}>
                   Suspend
                 </Button>
               )}
-              {user.role === "admin" ? (
+              {isSuperAdmin ? null : user.role === "admin" ? (
                 <Button variant="danger" disabled={busy} onClick={() => void handleRole("user")}>
                   Demote
                 </Button>
@@ -194,19 +299,18 @@ const AdminUserDetail = () => {
       </div>
 
       <Card className="mt-6 p-5">
-        <p className="ui-kicker mb-3">Moderation history</p>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="ui-kicker">Moderation history</p>
+          {data.history.length > 0 ? (
+            <span className="text-xs tabular-nums text-muted">
+              {data.history.length} action{data.history.length === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </div>
         {data.history.length === 0 ? (
-          <p className="text-sm text-muted">No actions yet.</p>
+          <p className="text-sm text-muted">No moderation actions yet.</p>
         ) : (
-          <ul className="space-y-2">
-            {data.history.map((action) => (
-              <li key={action.id} className="border-b border-border/60 py-2 text-sm last:border-0">
-                <span className="font-medium text-accent">{action.type}</span>
-                <span className="text-muted"> by {action.actorDisplayName} · {new Date(action.createdAt).toLocaleString()}</span>
-                {action.note ? <p className="mt-1 text-muted">{action.note}</p> : null}
-              </li>
-            ))}
-          </ul>
+          <ModerationTimeline history={data.history} />
         )}
       </Card>
 

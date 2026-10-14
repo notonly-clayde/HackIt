@@ -169,11 +169,11 @@ const VerifyEmail = () => {
 
           ) : (
 
-            <strong className="text-highlight hover:underline cursor-pointer" onClick={handleResend}>
+            <button type="button" className="font-bold text-highlight hover:underline cursor-pointer" onClick={handleResend}>
 
               {resent ? "Sent" : "Resend"}
 
-            </strong>
+            </button>
 
           )}
 

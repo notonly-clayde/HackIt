@@ -15,6 +15,7 @@ import {
   unlockHudAudio,
   type HudSoundCue,
 } from "../lib/hudSound"
+import { useGlobalHudHoverSound } from "../hooks/useGlobalHudHoverSound"
 
 type SoundContextValue = {
   enabled: boolean
@@ -87,6 +88,8 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     },
     [enabled, volume],
   )
+
+  useGlobalHudHoverSound(enabled, play)
 
   const toggleEnabled = useCallback(async () => {
     const next = !enabled

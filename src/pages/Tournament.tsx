@@ -224,11 +224,6 @@ const Tournament = () => {
     }
   }
 
-  const handleTournamentHover = (id: string, status: TournamentStatus) => {
-    play("tap")
-    prefetchTournament(id, status)
-  }
-
   return (
     <div className="page-container mt-8 sm:mt-10">
       <SectionHeader
@@ -318,7 +313,7 @@ const Tournament = () => {
               key={tournament.id}
               hover
               className="flex h-full flex-col px-5 py-5"
-              onMouseEnter={() => handleTournamentHover(tournament.id, tournament.status)}
+              onMouseEnter={() => prefetchTournament(tournament.id, tournament.status)}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -350,7 +345,7 @@ const Tournament = () => {
               key={tournament.id}
               hover
               className="px-5 sm:px-6 py-5"
-              onMouseEnter={() => handleTournamentHover(tournament.id, tournament.status)}
+              onMouseEnter={() => prefetchTournament(tournament.id, tournament.status)}
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">

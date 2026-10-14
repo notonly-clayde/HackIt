@@ -286,6 +286,7 @@ export type AdminUserDetail = {
   user: UserProfile
   history: ModerationActionItem[]
   reports: ReportItem[]
+  isSuperAdmin: boolean
 }
 
 export type ActivityLogItem = {
