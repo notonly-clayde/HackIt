@@ -1,4 +1,5 @@
 import type { SampleTestCase } from "../../types/api"
+import { formatArgLines, isArgListInput } from "../play/runner/parseTestValue"
 
 type SampleTestCasesProps = {
   tests: SampleTestCase[]
@@ -24,7 +25,7 @@ const SampleTestCases = ({ tests, className = "", caseLabel = "Sample" }: Sample
             <div>
               <p className="text-xs text-muted mb-1">Input</p>
               <pre className="rounded-lg bg-surface-2 px-3 py-2 text-xs overflow-x-auto whitespace-pre-wrap">
-                {test.input || "(empty)"}
+                {(isArgListInput(test.input) ? formatArgLines(test.input) : test.input) || "(empty)"}
               </pre>
             </div>
             <div>

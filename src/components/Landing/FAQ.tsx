@@ -29,7 +29,7 @@ const sampleQuestion = [
   {
     question: "What programming languages are supported?",
     answer:
-      "HackIT supports popular languages including C++, Java, Python, and JavaScript. The available languages may vary per tournament.",
+      "HackIT supports Python and JavaScript.",
   },
   {
     question: "How does ELO work?",

@@ -25,8 +25,6 @@ const HostCodeViewer = ({
   sourceCode,
   language,
 }: HostCodeViewerProps) => {
-  const monacoLanguage = language === "cpp" ? "cpp" : language
-
   return (
     <div className="flex flex-col h-full min-h-[420px]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -55,7 +53,7 @@ const HostCodeViewer = ({
         {problemId ? (
           <Editor
             height="100%"
-            language={monacoLanguage}
+            language={language}
             theme="vs-dark"
             value={sourceCode}
             options={{

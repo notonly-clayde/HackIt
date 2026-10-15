@@ -237,7 +237,6 @@ const AdminProblemReview = () => {
               [
                 ["Python", problem.starterPython],
                 ["JavaScript", problem.starterJs],
-                ["C++", problem.starterCpp],
               ] as const
             ).map(([label, code]) => (
               <div key={label}>

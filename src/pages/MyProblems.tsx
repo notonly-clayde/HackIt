@@ -90,14 +90,12 @@ const MyProblems = () => {
                     Preview
                   </Button>
                 </Link>
-                {problem.visibility === "public" ? (
-                  <Link to={`/problems/${problem.id}`}>
-                    <Button variant="secondary">
-                      <HiOutlinePlay className="h-4 w-4" />
-                      Practice
-                    </Button>
-                  </Link>
-                ) : null}
+                <Link to={`/problems/${problem.id}`}>
+                  <Button variant="secondary">
+                    <HiOutlinePlay className="h-4 w-4" />
+                    {problem.visibility === "public" ? "Practice" : "Test"}
+                  </Button>
+                </Link>
                 {problem.visibility === "private" ? (
                   <>
                     <Link to={`/problems/${problem.id}/edit`}>

@@ -4,6 +4,13 @@ import Field, { SelectField, TextAreaField } from "../ui/Field"
 import { useToast } from "../../contexts/ToastContext"
 import { PROBLEM_TAG_OPTIONS, type ProblemTagSlug } from "../../lib/problemTags"
 import StatementMarkdownEditor from "./StatementMarkdownEditor"
+import {
+  formatArgLines,
+  isArgListInput,
+  normalizeTestInput,
+  normalizeTestValue,
+  type TestInputMode,
+} from "../play/runner/parseTestValue"
 import type { CreateProblemInput, ProblemDifficulty, TestCaseInput } from "../../types/api"
 
 type ProblemFormProps = {
@@ -31,17 +38,22 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
   const [memoryLimitMb, setMemoryLimitMb] = useState(String(initial?.memoryLimitMb ?? 256))
   const [starterPython, setStarterPython] = useState(initial?.starterPython ?? "")
   const [starterJs, setStarterJs] = useState(initial?.starterJs ?? "")
-  const [starterCpp, setStarterCpp] = useState(initial?.starterCpp ?? "")
   const [tags, setTags] = useState<ProblemTagSlug[]>(
     (initial?.tags ?? []).filter((tag): tag is ProblemTagSlug =>
       PROBLEM_TAG_OPTIONS.some((option) => option.slug === tag),
     ),
   )
-  const [sampleTests, setSampleTests] = useState<TestCaseInput[]>(
-    initial?.testCases?.filter((t) => t.isSample) ?? [emptyTest(true)],
+  const [inputMode, setInputMode] = useState<TestInputMode>(() =>
+    !initial?.testCases || initial.testCases.some((t) => isArgListInput(t.input)) ? "lines" : "json",
   )
-  const [hiddenTests, setHiddenTests] = useState<TestCaseInput[]>(
-    initial?.testCases?.filter((t) => !t.isSample) ?? [emptyTest(false)],
+  const initialTests = (initial?.testCases ?? []).map((test) =>
+    inputMode === "lines" ? { ...test, input: formatArgLines(test.input) } : test,
+  )
+  const [sampleTests, setSampleTests] = useState<TestCaseInput[]>(() =>
+    initial?.testCases ? initialTests.filter((t) => t.isSample) : [emptyTest(true)],
+  )
+  const [hiddenTests, setHiddenTests] = useState<TestCaseInput[]>(() =>
+    initial?.testCases ? initialTests.filter((t) => !t.isSample) : [emptyTest(false)],
   )
   const [submitting, setSubmitting] = useState(false)
 
@@ -72,13 +84,38 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
       toast.error("Select at least one tag")
       return
     }
+
+    const normalizeCase = (test: TestCaseInput, isSample: boolean, order: number): TestCaseInput => {
+      const caseLabel = `${isSample ? "Sample" : "Hidden"} case ${order + 1}`
+      let input: string
+      let expectedOutput: string
+      try {
+        input = normalizeTestInput(test.input, inputMode)
+      } catch (err) {
+        throw new Error(`${caseLabel} input: ${err instanceof Error ? err.message : String(err)}`, { cause: err })
+      }
+      try {
+        expectedOutput = normalizeTestValue(test.expectedOutput)
+      } catch (err) {
+        throw new Error(`${caseLabel} expected output: ${err instanceof Error ? err.message : String(err)}`, {
+          cause: err,
+        })
+      }
+      return { input, expectedOutput, isSample, order }
+    }
+
+    let testCases: TestCaseInput[]
+    try {
+      testCases = [
+        ...sampleTests.map((test, index) => normalizeCase(test, true, index)),
+        ...hiddenTests.map((test, index) => normalizeCase(test, false, index)),
+      ]
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid test case")
+      return
+    }
+
     setSubmitting(true)
-
-    const testCases = [
-      ...sampleTests.map((test, index) => ({ ...test, isSample: true, order: index })),
-      ...hiddenTests.map((test, index) => ({ ...test, isSample: false, order: index })),
-    ]
-
     try {
       await onSubmit({
         title: title.trim(),
@@ -88,7 +125,6 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
         memoryLimitMb: Number(memoryLimitMb),
         starterPython: starterPython.trim() || null,
         starterJs: starterJs.trim() || null,
-        starterCpp: starterCpp.trim() || null,
         tags,
         testCases,
       })
@@ -133,14 +169,16 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
             )}
           </div>
           <TextAreaField
-            label="Input"
+            label={inputMode === "lines" ? "Input (one argument per line)" : "Input"}
             value={test.input}
             onChange={(e) => updateTest(tests, setTests, index, "input", e.target.value)}
+            placeholder={inputMode === "lines" ? '[2,7,11,15]\n9' : '{"nums": [2,7,11,15], "target": 9}'}
             rows={2}
           />
           <TextAreaField
             label="Expected output"
             value={test.expectedOutput}
+            placeholder="[0,1]"
             onChange={(e) => updateTest(tests, setTests, index, "expectedOutput", e.target.value)}
             rows={2}
           />
@@ -208,25 +246,38 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
           })}
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
         <TextAreaField
           label="Python starter (optional)"
           value={starterPython}
           onChange={(e) => setStarterPython(e.target.value)}
+          placeholder={"def solve(nums, target):\n    pass"}
           rows={3}
         />
         <TextAreaField
           label="JavaScript starter (optional)"
           value={starterJs}
           onChange={(e) => setStarterJs(e.target.value)}
+          placeholder={"function solve(nums, target) {\n}"}
           rows={3}
         />
-        <TextAreaField
-          label="C++ starter (optional)"
-          value={starterCpp}
-          onChange={(e) => setStarterCpp(e.target.value)}
-          rows={3}
-        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <SelectField
+          label="Test input format"
+          value={inputMode}
+          onChange={(e) => setInputMode(e.target.value as TestInputMode)}
+        >
+          <option value="lines">Lines (one argument per line, like LeetCode)</option>
+          <option value="json">JSON (single value passed as solve(input))</option>
+        </SelectField>
+        <p className="text-xs text-muted">
+          {inputMode === "lines"
+            ? "Each line is one argument to solve, in order. Example: solve(nums, target) takes [2,7,11,15] on line 1 and 9 on line 2."
+            : "The whole input is one value passed to solve(input), e.g. an object with named fields."}{" "}
+          Values are typed: 42 is a number, [1,2] an array, {"{a: 1}"} an object, "text" or 'text' a string without
+          quotes, and plain text a string.
+        </p>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 xl:gap-8">
         {renderTests("Sample tests (shown to players)", sampleTests, setSampleTests, true)}

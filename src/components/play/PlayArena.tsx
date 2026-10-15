@@ -48,7 +48,6 @@ function playResultCue(result: PlayRunResultView, play: (cue: "confirm" | "deny"
 const defaultStarters: Record<PlayLanguage, string> = {
   python: "# Write your solution\n",
   javascript: "// Write your solution\n",
-  cpp: "// Write your solution\n",
 }
 
 function solutionKey(problemId: string, lang: PlayLanguage): string {
@@ -169,7 +168,6 @@ const PlayArena = ({
     if (!problem) return defaultStarters[lang]
     if (lang === "python" && problem.starterPython) return problem.starterPython
     if (lang === "javascript" && problem.starterJs) return problem.starterJs
-    if (lang === "cpp" && problem.starterCpp) return problem.starterCpp
     return defaultStarters[lang]
   }
 
@@ -436,8 +434,6 @@ const PlayArena = ({
   const isResuming = contestFrozen && resumeCountdownSeconds != null
   const editorReadOnly = readOnly || !activeProblem || contestFrozen || contestTimeExpired
   const controlsDisabled = contestFrozen || contestTimeExpired
-  const monacoLanguage = language === "cpp" ? "cpp" : language
-
   const problemTabContent = (
     <div className="p-4 sm:p-6">
       <h1 className="text-xl font-bold text-accent mb-2">
@@ -506,7 +502,7 @@ const PlayArena = ({
       <div className="flex-1 min-h-0">
         <Editor
           height="100%"
-          language={monacoLanguage}
+          language={language}
           theme="vs-dark"
           value={displayCode}
           onMount={(editor) => {
@@ -550,7 +546,7 @@ const PlayArena = ({
       <div className="flex-1 min-h-0">
         <Editor
           height="100%"
-          language={monacoLanguage}
+          language={language}
           theme="vs-dark"
           value={testCode}
           onMount={(editor) => {
@@ -609,7 +605,6 @@ const PlayArena = ({
                   options={[
                     { value: "python", label: "Python" },
                     { value: "javascript", label: "JavaScript" },
-                    { value: "cpp", label: "C++" },
                   ]}
                   onChange={(next) => handleLanguageChange(next as PlayLanguage)}
                 />

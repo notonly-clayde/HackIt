@@ -152,9 +152,9 @@ const ProblemPreview = () => {
 
         <div className="flex shrink-0 flex-wrap gap-2">
           <ReportButton targetType="problem" targetId={problem.id} variant="ghost" />
-          {problem.visibility === "public" ? (
+          {problem.visibility === "public" || isAuthor ? (
             <Link to={`/problems/${problem.id}`}>
-              <Button variant="primary">Practice</Button>
+              <Button variant="primary">{problem.visibility === "public" ? "Practice" : "Test problem"}</Button>
             </Link>
           ) : (
             <Button variant="primary" disabled title="Available after admin approval">

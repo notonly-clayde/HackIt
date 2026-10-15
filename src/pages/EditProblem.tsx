@@ -81,7 +81,6 @@ const EditProblem = () => {
             memoryLimitMb: problem.memoryLimitMb,
             starterPython: problem.starterPython,
             starterJs: problem.starterJs,
-            starterCpp: problem.starterCpp,
             tags: problem.tags ?? [],
             testCases,
           }}

@@ -18,7 +18,8 @@ const ProblemPractice = () => {
   useQueryErrorToast(error)
 
   const isAdmin = profile?.role === "admin"
-  const canPractice = Boolean(problem && (problem.visibility === "public" || isAdmin))
+  const isAuthor = Boolean(problem && profile && problem.authorId === profile.id)
+  const canPractice = Boolean(problem && (problem.visibility === "public" || isAdmin || isAuthor))
   const visibilityError =
     problem && !canPractice ? "Only public catalog problems can be practiced here" : null
 
@@ -50,14 +51,16 @@ const ProblemPractice = () => {
     )
   }
 
-  const backTo = isAdmin && problem.visibility !== "public" ? `/admin/problems/${problem.id}` : "/problems"
-  const backLabel = isAdmin && problem.visibility !== "public" ? "Review" : "Catalog"
+  const isPublic = problem.visibility === "public"
+  const backTo = isPublic ? "/problems" : isAuthor ? "/problems/mine" : `/admin/problems/${problem.id}`
+  const backLabel = isPublic ? "Catalog" : isAuthor ? "My problems" : "Review"
+  const modeLabel = isPublic ? "Practice" : isAuthor ? "Author test" : "Admin try"
 
   return (
     <PlayArena
       backTo={backTo}
       backLabel={backLabel}
-      modeLabel={problem.visibility === "public" ? "Practice" : "Admin try"}
+      modeLabel={modeLabel}
       problems={[problem]}
       authToken={token}
       onLeave={() => navigate(backTo)}

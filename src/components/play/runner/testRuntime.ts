@@ -1,3 +1,5 @@
+import { parseTestValue } from "./parseTestValue"
+
 export type TestCaseResult = {
   name: string
   passed: boolean
@@ -27,16 +29,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
   }
 }
 
-export function parseInput(raw: string): unknown {
-  const trimmed = raw.trim()
-  if (!trimmed) return raw
-
-  try {
-    return JSON.parse(trimmed)
-  } catch {
-    return raw
-  }
-}
+export const parseInput = parseTestValue
 
 export function createTestRuntime() {
   const results: TestCaseResult[] = []

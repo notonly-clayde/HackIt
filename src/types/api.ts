@@ -70,7 +70,6 @@ export type CreateProblemInput = {
   memoryLimitMb?: number
   starterPython?: string | null
   starterJs?: string | null
-  starterCpp?: string | null
   tags: string[]
   testCases: TestCaseInput[]
 }
@@ -99,7 +98,6 @@ export type ProblemDetail = {
   statement: string
   starterPython: string | null
   starterJs: string | null
-  starterCpp: string | null
   sampleTests: SampleTestCase[]
   hiddenTests?: (SampleTestCase & { isSample: boolean })[]
 }
@@ -133,7 +131,7 @@ export type TournamentStandings = {
   entries: StandingsEntry[]
 }
 
-export type PlayLanguage = "python" | "javascript" | "cpp"
+export type PlayLanguage = "python" | "javascript"
 
 export type TournamentTimerFields = {
   status: TournamentStatus

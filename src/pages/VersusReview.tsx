@@ -14,14 +14,9 @@ import VersusService from "../services/VersusService"
 import { leaveVersusResults, subscribeVersusMatchFound } from "../services/socket"
 import type { PlayLanguage, VersusReview, VersusReviewSubmission } from "../types/api"
 
-function toPlayLanguage(language: string): PlayLanguage {
-  if (language === "javascript" || language === "cpp" || language === "python") return language
-  return "python"
-}
-
-function monacoLanguage(language: string) {
-  const play = toPlayLanguage(language)
-  return play === "cpp" ? "cpp" : play
+function monacoLanguage(language: string): PlayLanguage | "plaintext" {
+  if (language === "javascript" || language === "python") return language
+  return "plaintext"
 }
 
 const ReviewPane = ({
@@ -37,7 +32,7 @@ const ReviewPane = ({
         <p className="text-sm font-semibold text-accent">{label}</p>
         {submission ? (
           <p className="text-xs text-muted mt-0.5">
-            {toPlayLanguage(submission.language)} · {submission.verdict}
+            {submission.language} · {submission.verdict}
             {submission.effectiveElapsedMinutes != null
               ? ` · ${submission.effectiveElapsedMinutes} min`
               : ""}
