@@ -7,7 +7,7 @@ import { signinSchema, type SigninFormValues } from "../types/common/signinSchem
 import OAuthProviders from "../components/common/OAuthProviders"
 import InputGroup from "../components/common/InputGroup"
 import AuthService from "../services/AuthService"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import Button from "../components/common/Button"
@@ -17,14 +17,14 @@ import { isAdminEmail } from "../lib/adminEmails"
 
 const Login = () => {
   const [rememberAccount, setRememberAccount] = useState<boolean>(false)
-  const { refresh, setAuth } = useAuth()
+  const { refresh } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
-  const { register, handleSubmit, formState, reset } = useForm<SigninFormValues>({
+  const { register, handleSubmit, formState } = useForm<SigninFormValues>({
     resolver: zodResolver(signinSchema),
     mode: "onTouched",
   })
-  const { errors, isDirty, isValid, isSubmitting, isSubmitSuccessful } = formState
+  const { errors, isDirty, isValid, isSubmitting } = formState
 
   const onSubmit: SubmitHandler<SigninFormValues> = async ({ email, password }) => {
     const [data, err] = await AuthService.signin({ email, password })
@@ -47,15 +47,10 @@ const Login = () => {
       return
     }
 
-    setAuth(data?.user)
+    // Bootstrap profile/token before GuestRoutes redirects away from /login,
+    // so admin nav (profile.role) is available without a full page refresh.
+    await refresh()
   }
-
-  useEffect(() => {
-    if (isSubmitSuccessful) {
-      reset()
-      refresh()
-    }
-  }, [isSubmitSuccessful, reset, refresh])
 
   return (
     <div className="auth-shell">

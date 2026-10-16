@@ -863,6 +863,11 @@ textarea {
     border-radius: 0.25rem;
   }
 
+  .auth-field input[type="password"]::-ms-reveal,
+  .auth-field input[type="password"]::-ms-clear {
+    display: none;
+  }
+
   .problem-markdown {
     @apply text-sm leading-relaxed text-muted;
   }
