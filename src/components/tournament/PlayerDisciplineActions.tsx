@@ -20,7 +20,8 @@ type PlayerDisciplineActionsProps = {
 const actionCopy: Record<DisciplineAction, { title: string; description: string; submit: string }> = {
   warn: {
     title: "Warn player",
-    description: "The player sees this warning in the arena. The host and moderators can review it later.",
+    description:
+      "The player sees this warning in the arena with their strike count. After 3 warnings in this tournament they are automatically disqualified.",
     submit: "Send warning",
   },
   suspend: {
@@ -69,12 +70,35 @@ const PlayerDisciplineActions = ({ tournamentId, token, staffRole, player }: Pla
     }
 
     setSubmitting(true)
-    const [, err] =
-      action === "warn"
-        ? await TournamentService.warnPlayer(token, tournamentId, player.userId, trimmed)
-        : action === "suspend"
-          ? await TournamentService.requestSuspension(token, tournamentId, player.userId, trimmed)
-          : await TournamentService.disqualifyPlayer(token, tournamentId, player.userId, trimmed)
+    let autoDisqualified = false
+    let err: string | undefined
+
+    if (action === "warn") {
+      const [result, warnErr] = await TournamentService.warnPlayer(token, tournamentId, player.userId, trimmed)
+      err = warnErr
+      if (result) {
+        autoDisqualified = result.disqualified
+        toast.success(
+          result.disqualified
+            ? `${player.displayName} was disqualified (${result.playerWarningCount} warnings)`
+            : `Warning ${result.playerWarningCount}/${result.maxWarnings} sent to ${player.displayName}`,
+        )
+      }
+    } else if (action === "suspend") {
+      const [, suspendErr] = await TournamentService.requestSuspension(
+        token,
+        tournamentId,
+        player.userId,
+        trimmed,
+      )
+      err = suspendErr
+      if (!err) toast.success("Suspension request sent to the host")
+    } else {
+      const [, dqErr] = await TournamentService.disqualifyPlayer(token, tournamentId, player.userId, trimmed)
+      err = dqErr
+      if (!err) toast.success(`${player.displayName} was disqualified`)
+    }
+
     setSubmitting(false)
 
     if (err) {
@@ -82,16 +106,9 @@ const PlayerDisciplineActions = ({ tournamentId, token, staffRole, player }: Pla
       return
     }
 
-    toast.success(
-      action === "warn"
-        ? `Warning sent to ${player.displayName}`
-        : action === "suspend"
-          ? "Suspension request sent to the host"
-          : `${player.displayName} was disqualified`,
-    )
     setAction(null)
     void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.discipline(tournamentId) })
-    if (action === "disqualify") {
+    if (action === "disqualify" || autoDisqualified) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.standings(tournamentId) })
     }
   }

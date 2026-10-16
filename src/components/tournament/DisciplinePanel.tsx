@@ -1,13 +1,15 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { HiOutlineExclamationTriangle } from "react-icons/hi2"
 import { useQueryClient } from "@tanstack/react-query"
-import Badge from "../ui/Badge"
 import Button from "../ui/Button"
 import Card from "../ui/Card"
 import { useConfirm } from "../../contexts/ConfirmContext"
 import { useToast } from "../../contexts/ToastContext"
 import TournamentService from "../../services/TournamentService"
 import { queryKeys } from "../../lib/queryKeys"
+import Badge from "../ui/Badge"
 import type { TournamentDiscipline, TournamentSuspensionRequest } from "../../types/api"
+import { MAX_TOURNAMENT_WARNINGS } from "../../types/api"
 
 type DisciplinePanelProps = {
   tournamentId: string
@@ -32,6 +34,22 @@ const DisciplinePanel = ({ tournamentId, token, isHost, canDecide, discipline }:
   const [deciding, setDeciding] = useState<string | null>(null)
 
   const warnings = discipline?.warnings ?? []
+  const warningStrikeById = useMemo(() => {
+    const byPlayer = new Map<string, { id: string; createdAt: string }[]>()
+    for (const warning of warnings) {
+      const list = byPlayer.get(warning.playerId) ?? []
+      list.push({ id: warning.id, createdAt: warning.createdAt })
+      byPlayer.set(warning.playerId, list)
+    }
+    const strikeById = new Map<string, number>()
+    for (const entries of byPlayer.values()) {
+      entries.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      entries.forEach((entry, index) => {
+        strikeById.set(entry.id, index + 1)
+      })
+    }
+    return strikeById
+  }, [warnings])
   const requests = discipline?.suspensionRequests ?? []
   const pending = requests.filter((request) => request.status === "pending")
   const resolved = requests.filter((request) => request.status !== "pending")
@@ -132,16 +150,26 @@ const DisciplinePanel = ({ tournamentId, token, isHost, canDecide, discipline }:
             <p className="text-sm text-muted">No warnings issued yet.</p>
           ) : (
             <ul className="space-y-3">
-              {warnings.map((warning) => (
-                <li key={warning.id} className="rounded-lg border border-border bg-surface/40 p-3 text-sm">
+              {warnings.map((warning) => {
+                const strike = warningStrikeById.get(warning.id) ?? 1
+                return (
+                <li
+                  key={warning.id}
+                  className="rounded-lg border border-amber-400/30 border-l-4 border-l-amber-400 bg-surface/40 p-3 text-sm"
+                >
                   <div className="flex flex-wrap items-center gap-2">
+                    <HiOutlineExclamationTriangle className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
                     <span className="text-accent font-medium">{warning.playerDisplayName}</span>
+                    <Badge tone="warn" className="!text-xs">
+                      {strike}/{MAX_TOURNAMENT_WARNINGS}
+                    </Badge>
                     <span className="text-muted text-xs tabular-nums ml-auto">{formatTime(warning.createdAt)}</span>
                   </div>
                   <p className="text-muted mt-1.5 break-words">{warning.reason}</p>
                   <p className="text-xs text-midtone mt-1">Warned by {warning.issuedByDisplayName}</p>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </section>

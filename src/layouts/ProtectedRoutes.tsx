@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import SuspendedAccount from "../pages/SuspendedAccount"
 import { isEmailVerifiedForAccess } from "../lib/emailVerification"
+import ModeratorInviteListener from "../components/tournament/ModeratorInviteListener"
 
 const ProtectedRoutes = () => {
   const { user, profile, isLoading, suspendedMessage } = useAuth()
@@ -19,7 +20,12 @@ const ProtectedRoutes = () => {
   if (suspendedMessage) return <SuspendedAccount />
   if (!isEmailVerifiedForAccess(user, profile)) return <Navigate to="/verify-email" replace />
 
-  return <Outlet />
+  return (
+    <>
+      <ModeratorInviteListener />
+      <Outlet />
+    </>
+  )
 }
 
 export default ProtectedRoutes

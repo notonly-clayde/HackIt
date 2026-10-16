@@ -1,7 +1,14 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { HiOutlineEye, HiOutlinePaperAirplane, HiOutlinePencilSquare, HiOutlinePlay, HiOutlinePlus } from "react-icons/hi2"
+import {
+  HiOutlineEye,
+  HiOutlinePaperAirplane,
+  HiOutlinePencilSquare,
+  HiOutlinePlay,
+  HiOutlinePlus,
+  HiOutlineTrash,
+} from "react-icons/hi2"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
 import Badge from "../components/ui/Badge"
@@ -10,6 +17,8 @@ import QueryLoadingCard from "../components/ui/QueryLoadingCard"
 import RefreshingIndicator from "../components/ui/RefreshingIndicator"
 import ProblemTagChips from "../components/problems/ProblemTagChips"
 import { useAuth } from "../contexts/AuthContext"
+import { useConfirm } from "../contexts/ConfirmContext"
+import { useToast } from "../contexts/ToastContext"
 import { useMyProblems } from "../hooks/queries/useProblemQueries"
 import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 import { queryKeys } from "../lib/queryKeys"
@@ -23,10 +32,33 @@ const visibilityTone = {
 
 const MyProblems = () => {
   const { token } = useAuth()
+  const { confirm } = useConfirm()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const { data: problems = [], isLoading, isFetching, error } = useMyProblems(token)
   useQueryErrorToast(error)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const deleteProblem = async (problem: (typeof problems)[number]) => {
+    const ok = await confirm({
+      title: "Delete problem?",
+      message: `Delete "${problem.title}"? This cannot be undone.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    })
+    if (!ok) return
+
+    setDeletingId(problem.id)
+    const [, err] = await ProblemService.remove(token, problem.id)
+    setDeletingId(null)
+    if (err) {
+      toast.error(err)
+      return
+    }
+    toast.success("Problem deleted")
+    void queryClient.invalidateQueries({ queryKey: queryKeys.problems.mine() })
+  }
 
   const submitForReview = async (id: string) => {
     setBusyId(id)
@@ -113,6 +145,17 @@ const MyProblems = () => {
                       Submit
                     </Button>
                   </>
+                ) : null}
+                {problem.visibility !== "public" ? (
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:text-danger"
+                    loading={deletingId === problem.id}
+                    onClick={() => void deleteProblem(problem)}
+                  >
+                    <HiOutlineTrash className="h-4 w-4" />
+                    Delete
+                  </Button>
                 ) : null}
               </div>
             </Card>

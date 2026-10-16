@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import Editor from "@monaco-editor/react"
 import Button from "../ui/Button"
 import Badge from "../ui/Badge"
+import Modal from "../ui/Modal"
 import Select from "../ui/Select"
 import { HiOutlinePlay, HiOutlinePaperAirplane } from "react-icons/hi2"
 import TournamentTimer from "../tournament/TournamentTimer"
@@ -25,8 +27,10 @@ import {
 import ProblemService from "../../services/ProblemService"
 import TournamentService from "../../services/TournamentService"
 import VersusService from "../../services/VersusService"
+import { useAuth } from "../../contexts/AuthContext"
 import { useHudSound } from "../../contexts/SoundContext"
 import { useToast } from "../../contexts/ToastContext"
+import { queryKeys } from "../../lib/queryKeys"
 import { useContestFreezeSounds } from "../../hooks/useContestFreezeSounds"
 import { useTournamentUrgencySound } from "../../hooks/useTournamentUrgencySound"
 import { useLiveFocusIntegrity, type FocusIntegrityTarget } from "../../hooks/useLiveFocusIntegrity"
@@ -122,6 +126,9 @@ const PlayArena = ({
   matchActions,
   focusIntegrity,
 }: PlayArenaProps) => {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { profile } = useAuth()
   const { play } = useHudSound()
   const toast = useToast()
   const focusTarget: FocusIntegrityTarget | null = tournamentId
@@ -151,6 +158,8 @@ const PlayArena = ({
   const [submissionsUnread, setSubmissionsUnread] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [fullSolvePromptOpen, setFullSolvePromptOpen] = useState(false)
+  const [acceptingScore, setAcceptingScore] = useState(false)
 
   const solutionEditorRef = useRef<{ layout: () => void } | null>(null)
   const testEditorRef = useRef<{ layout: () => void } | null>(null)
@@ -425,10 +434,40 @@ const PlayArena = ({
     setSubmissionsUnread(false)
     playResultCue(normalized, play)
 
+    if (
+      tournamentId &&
+      profile?.id &&
+      normalized.status === "accepted" &&
+      problems.length > 0 &&
+      result.standings
+    ) {
+      const entry = result.standings.entries.find((row) => row.userId === profile.id)
+      if (entry && entry.solved === problems.length) {
+        setFullSolvePromptOpen(true)
+      }
+    }
+
     if (matchId) {
       const matchEnded = (result as VersusSubmissionResult).matchEnded
       if (matchEnded) onMatchEnded?.(matchEnded)
     }
+  }
+
+  const handleAcceptScoreAndLeave = async () => {
+    if (!tournamentId || !authToken) return
+
+    setAcceptingScore(true)
+    const [, err] = await TournamentService.acceptScore(authToken, tournamentId)
+    setAcceptingScore(false)
+
+    if (err) {
+      toast.error(err)
+      return
+    }
+
+    setFullSolvePromptOpen(false)
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.detail(tournamentId) })
+    navigate(backTo, { replace: true })
   }
 
   const isResuming = contestFrozen && resumeCountdownSeconds != null
@@ -730,6 +769,30 @@ const PlayArena = ({
           />
         )}
       </div>
+
+      <Modal
+        open={fullSolvePromptOpen}
+        onClose={() => setFullSolvePromptOpen(false)}
+        kicker="Tournament"
+        title="All problems solved"
+        description="You can keep improving your code or accept your current score and leave the arena."
+        size="sm"
+        footer={
+          <div className="flex flex-wrap gap-2 justify-end w-full">
+            <Button variant="secondary" onClick={() => setFullSolvePromptOpen(false)} disabled={acceptingScore}>
+              Keep editing
+            </Button>
+            <Button variant="primary" onClick={() => void handleAcceptScoreAndLeave()} disabled={acceptingScore}>
+              {acceptingScore ? "Leaving…" : "Accept score & leave"}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted">
+          Your rank is based on your accepted submissions. After you leave, you cannot re-enter the play arena until
+          this tournament ends.
+        </p>
+      </Modal>
     </div>
   )
 }

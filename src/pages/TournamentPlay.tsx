@@ -16,13 +16,15 @@ import { useAuth } from "../contexts/AuthContext"
 import { useHudSound } from "../contexts/SoundContext"
 import { useToast } from "../contexts/ToastContext"
 import { queryKeys } from "../lib/queryKeys"
-import type { TournamentPlayerWarnedEvent } from "../types/api"
+import { HiOutlineExclamationTriangle } from "react-icons/hi2"
+import { MAX_TOURNAMENT_WARNINGS, type TournamentPlayerWarnedEvent } from "../types/api"
 import { useResumeCountdown } from "../hooks/useResumeCountdown"
 import { useTournamentTimer } from "../hooks/useTournamentTimer"
 import {
   useTournamentDetail,
   useTournamentProblems,
 } from "../hooks/queries/useTournamentQueries"
+import { useTournamentEndedScoreboardRedirect } from "../hooks/useTournamentEndedScoreboardRedirect"
 import {
   problemsFromItems,
   useTournamentLiveStateSocket,
@@ -105,6 +107,12 @@ const TournamentPlay = () => {
           : "You were disqualified from this tournament",
       )
       navigate(`/tournament/${id}`, { replace: true })
+      return
+    }
+
+    if (tournament.viewerContestFinished) {
+      redirectedRef.current = true
+      navigate(`/tournament/${id}`, { replace: true })
     }
   }, [tournament, id, navigate, toast])
 
@@ -153,10 +161,19 @@ const TournamentPlay = () => {
     }
   }, [token, id, navigate, play, queryClient, toast])
 
+  useTournamentEndedScoreboardRedirect(id, tournament?.status)
+
   useTournamentLiveStateSocket(token, id, () => {
-    if (id) navigate(`/tournament/${id}/spectate`, { replace: true })
+    if (!id) return
+    redirectedRef.current = true
+    navigate(`/tournament/${id}`, { replace: true })
   })
   useTournamentProblemSetSocket(token, id)
+
+  useEffect(() => {
+    if (!id || !contestTimeExpired || tournament?.status !== "Live") return
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.detail(id) })
+  }, [id, contestTimeExpired, tournament?.status, queryClient])
 
   const loading = (tournamentLoading && !tournament) || (problemsLoading && problems.length === 0 && !frozen)
 
@@ -192,7 +209,11 @@ const TournamentPlay = () => {
         onClose={() => setWarning(null)}
         kicker="Moderator warning"
         title="You received a warning"
-        description={warning ? `From ${warning.issuedBy} at ${new Date(warning.at).toLocaleTimeString()}` : undefined}
+        description={
+          warning
+            ? `From ${warning.issuedBy} at ${new Date(warning.at).toLocaleTimeString()}`
+            : undefined
+        }
         size="sm"
         footer={
           <Button variant="primary" onClick={() => setWarning(null)}>
@@ -200,9 +221,19 @@ const TournamentPlay = () => {
           </Button>
         }
       >
+        {warning && (
+          <div className="flex items-center gap-2 mb-3">
+            <HiOutlineExclamationTriangle className="h-6 w-6 shrink-0 text-amber-400" aria-hidden />
+            <p className="text-sm font-semibold text-amber-300 tabular-nums">
+              Warning {warning.warningCount ?? 1} of {warning.maxWarnings ?? MAX_TOURNAMENT_WARNINGS}
+            </p>
+          </div>
+        )}
         <p className="text-sm text-accent whitespace-pre-wrap break-words">{warning?.reason}</p>
-        <p className="text-xs text-muted">
-          Repeated violations can lead to a suspension request and disqualification from this tournament.
+        <p className="text-xs text-muted mt-3">
+          {(warning?.warningCount ?? 1) >= (warning?.maxWarnings ?? MAX_TOURNAMENT_WARNINGS)
+            ? "You reached the warning limit and will be disqualified from this contest."
+            : `After ${warning?.maxWarnings ?? MAX_TOURNAMENT_WARNINGS} warnings you are automatically disqualified and removed from the contest.`}
         </p>
       </Modal>
     </>

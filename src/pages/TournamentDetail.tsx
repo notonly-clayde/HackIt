@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import Card from "../components/ui/Card"
@@ -24,6 +24,8 @@ import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { useConfirm } from "../contexts/ConfirmContext"
 import { queryKeys } from "../lib/queryKeys"
+import { useModeratorInviteRespond } from "../hooks/useModeratorInviteRespond"
+import { subscribeModeratorInviteResolved } from "../services/socket"
 import type { TournamentStatus } from "../types/api"
 
 const statusTone: Record<TournamentStatus, "open" | "soon" | "live" | "ended"> = {
@@ -45,6 +47,8 @@ const TournamentDetail = () => {
   const [lobbyPassword, setLobbyPassword] = useState("")
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const respondModeratorInvite = useModeratorInviteRespond()
 
   const {
     data: tournament,
@@ -66,6 +70,15 @@ const TournamentDetail = () => {
   useTournamentStandingsSocket(token, id, showStandings)
   useLobbyIndexCounts(token, id)
   useTournamentLiveRedirect(token, tournament)
+
+  useEffect(() => {
+    if (!token || !id || !tournament || tournament.hostId !== profile?.id) return
+
+    return subscribeModeratorInviteResolved(token, (event) => {
+      if (event.tournamentId !== id) return
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.detail(id) })
+    })
+  }, [token, id, tournament, profile?.id, queryClient])
 
   if (isLoading && !tournament) {
     return (
@@ -98,8 +111,11 @@ const TournamentDetail = () => {
   const isHost = Boolean(profile && tournament.hostId === profile.id)
   const isMod = tournament.viewerRole === "mod"
   const isDisqualified = Boolean(tournament.viewerDisqualified)
-  const isParticipant = tournament.viewerRole === "player" && !isDisqualified
+  const isContestFinished = Boolean(tournament.viewerContestFinished)
+  const isEnrolledPlayer = tournament.viewerRole === "player" && !isDisqualified
+  const isParticipant = isEnrolledPlayer && !isContestFinished
   const isStaff = isHost || isMod
+  const invitePending = Boolean(tournament.viewerModeratorInvitePending)
 
   const goToLobby = (password?: string) => {
     const verifiedPassword = typeof password === "string" && password.trim() ? password.trim() : undefined
@@ -191,10 +207,56 @@ const TournamentDetail = () => {
               Mods: {tournament.moderators.map((m) => m.displayName).join(", ")}
             </p>
           )}
+          {isHost && (tournament.moderatorInvites?.length ?? 0) > 0 && (
+            <p className="text-sm text-muted mt-2">
+              Pending mods:{" "}
+              {tournament.moderatorInvites?.map((m) => `${m.displayName} (awaiting approval)`).join(", ")}
+            </p>
+          )}
+          {invitePending && (
+            <Card className="mt-4 p-4 border border-amber-500/30 bg-amber-500/5">
+              <p className="text-sm text-accent font-medium">You&apos;ve been invited to moderate this event.</p>
+              <p className="text-sm text-muted mt-1">
+                {isLive || isEnded
+                  ? "This event has already started, so you can no longer accept — decline to dismiss this invite."
+                  : "Accept to monitor players from the mod dashboard when the tournament starts."}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Button
+                  variant="primary"
+                  disabled={inviteBusy || isLive || isEnded}
+                  onClick={() => {
+                    if (!id) return
+                    setInviteBusy(true)
+                    void respondModeratorInvite(id, true).finally(() => setInviteBusy(false))
+                  }}
+                >
+                  {inviteBusy ? "Saving…" : "Accept"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={inviteBusy}
+                  onClick={() => {
+                    if (!id) return
+                    setInviteBusy(true)
+                    void respondModeratorInvite(id, false).finally(() => setInviteBusy(false))
+                  }}
+                >
+                  Decline
+                </Button>
+              </div>
+            </Card>
+          )}
           {isDisqualified && (
             <p className="text-sm text-danger mt-3">
               You were disqualified from this tournament
               {tournament.viewerDisqualifyReason ? `: ${tournament.viewerDisqualifyReason}` : "."}
+            </p>
+          )}
+          {isContestFinished && isLive && (
+            <p className="text-sm text-muted mt-3">
+              You accepted your score and left the arena. You can spectate or watch the scoreboard until the contest
+              ends.
             </p>
           )}
         </div>
@@ -243,14 +305,14 @@ const TournamentDetail = () => {
                   <Button variant="primary">Enter play</Button>
                 </Link>
               )}
-              {!isStaff && !isParticipant && (
+              {!isStaff && !isEnrolledPlayer && (
                 <Link to={`/tournament/${tournament.id}/spectate`}>
                   <Button variant="primary">Spectate</Button>
                 </Link>
               )}
-              {isParticipant && (
+              {isEnrolledPlayer && (
                 <Link to={`/tournament/${tournament.id}/spectate`}>
-                  <Button variant="secondary">Spectate</Button>
+                  <Button variant={isContestFinished ? "primary" : "secondary"}>Spectate</Button>
                 </Link>
               )}
             </>

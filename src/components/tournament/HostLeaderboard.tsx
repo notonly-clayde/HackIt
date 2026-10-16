@@ -1,17 +1,20 @@
+import { HiOutlineExclamationTriangle } from "react-icons/hi2"
 import Badge from "../ui/Badge"
 import type { TournamentStandings } from "../../types/api"
+import { MAX_TOURNAMENT_WARNINGS } from "../../types/api"
 
 type HostLeaderboardProps = {
   standings: TournamentStandings | null
   selectedUserId: string | null
   onSelect: (userId: string) => void
+  warningCounts?: Record<string, number>
 }
 
 function shortPlayerId(userId: string): string {
   return userId.slice(-4)
 }
 
-const HostLeaderboard = ({ standings, selectedUserId, onSelect }: HostLeaderboardProps) => {
+const HostLeaderboard = ({ standings, selectedUserId, onSelect, warningCounts = {} }: HostLeaderboardProps) => {
   const entries = standings?.entries ?? []
 
   if (entries.length === 0) {
@@ -26,6 +29,7 @@ const HostLeaderboard = ({ standings, selectedUserId, onSelect }: HostLeaderboar
     <div className="space-y-2">
       {entries.map((entry) => {
         const selected = entry.userId === selectedUserId
+        const warnCount = warningCounts[entry.userId] ?? 0
         return (
           <button
             key={entry.userId}
@@ -42,9 +46,19 @@ const HostLeaderboard = ({ standings, selectedUserId, onSelect }: HostLeaderboar
                 <p className="text-xs text-muted tabular-nums mb-0.5">
                   {entry.disqualified ? <Badge tone="danger">DQ</Badge> : entry.rank}
                 </p>
-                <p className={`text-accent font-medium truncate ${entry.disqualified ? "line-through" : ""}`}>
-                  {entry.displayName}{" "}
-                  <span className="text-muted font-normal">({shortPlayerId(entry.userId)})</span>
+                <p className={`text-accent font-medium truncate flex items-center gap-1.5 ${entry.disqualified ? "line-through" : ""}`}>
+                  {!entry.disqualified && warnCount > 0 && (
+                    <span className="inline-flex items-center gap-0.5 shrink-0 text-amber-400" title="Warnings">
+                      <HiOutlineExclamationTriangle className="h-4 w-4" aria-hidden />
+                      <span className="text-xs font-semibold tabular-nums text-amber-300">
+                        {warnCount}/{MAX_TOURNAMENT_WARNINGS}
+                      </span>
+                    </span>
+                  )}
+                  <span className="truncate">
+                    {entry.displayName}{" "}
+                    <span className="text-muted font-normal">({shortPlayerId(entry.userId)})</span>
+                  </span>
                 </p>
               </div>
               <p className="text-accent font-semibold tabular-nums shrink-0">

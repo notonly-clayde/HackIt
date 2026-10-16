@@ -20,6 +20,7 @@ import {
   joinLobby,
   leaveLobby,
   subscribeLobbyState,
+  subscribeModeratorInviteResolved,
   subscribeTournamentLiveState,
   watchLobby,
 } from "../services/socket"
@@ -27,8 +28,10 @@ import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { useConfirm } from "../contexts/ConfirmContext"
 import { useTournamentDetail } from "../hooks/queries/useTournamentQueries"
+import { useTournamentEndedScoreboardRedirect } from "../hooks/useTournamentEndedScoreboardRedirect"
 import { useTournamentRemovedRedirect } from "../hooks/useTournamentRemovedRedirect"
 import { queryKeys } from "../lib/queryKeys"
+import { useModeratorInviteRespond } from "../hooks/useModeratorInviteRespond"
 import type { LobbyPlayer, LobbyState } from "../types/api"
 
 const roleBadge = (role: LobbyPlayer["role"]) => {
@@ -77,12 +80,16 @@ const TournamentLobbyPage = () => {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const respondModeratorInvite = useModeratorInviteRespond()
 
   const joinedRef = useRef(false)
   const joiningRef = useRef(false)
   const isHostRef = useRef(false)
   const enteringLiveRef = useRef(false)
   const deletingRef = useRef(false)
+
+  useTournamentEndedScoreboardRedirect(id, tournament?.status)
 
   useTournamentRemovedRedirect(id, token, queryError, {
     suppress: () => deletingRef.current,
@@ -120,6 +127,7 @@ const TournamentLobbyPage = () => {
   const isHost = Boolean(profile && tournament && tournament.hostId === profile.id)
   const isMod = Boolean(profile && tournament?.moderators.some((mod) => mod.id === profile.id))
   const isStaff = isHost || isMod
+  const invitePending = Boolean(tournament?.viewerModeratorInvitePending)
 
   useEffect(() => {
     isHostRef.current = isStaff
@@ -134,8 +142,16 @@ const TournamentLobbyPage = () => {
       return
     }
 
+    const detail = queryClient.getQueryData<{ viewerContestFinished?: boolean }>(
+      queryKeys.tournaments.detail(id),
+    )
+    if (detail?.viewerContestFinished) {
+      navigate(`/tournament/${id}`, { replace: true })
+      return
+    }
+
     navigate(`/tournament/${id}/play`)
-  }, [id, navigate])
+  }, [id, navigate, queryClient])
 
   const patchPlayerCount = useCallback(
     (playerCount: number, maxPlayers?: number) => {
@@ -268,13 +284,31 @@ const TournamentLobbyPage = () => {
   }, [token, id, patchPlayerCount, toast])
 
   useEffect(() => {
+    if (!token || !id || !isHost) return
+
+    const unsubscribe = subscribeModeratorInviteResolved(token, (event) => {
+      if (event.tournamentId !== id) return
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.detail(id) })
+    })
+
+    return unsubscribe
+  }, [token, id, isHost, queryClient])
+
+  useEffect(() => {
     if (!tournament || !id) return
+    if (tournament.viewerModeratorInvitePending) return
     if (lobbyJoinInitiated.has(id) || inFlightLobbyJoins.has(id)) return
 
     if (tournament.status === "Live") {
       enteringLiveRef.current = true
-      if (tournament.viewerRole === "player" && !tournament.viewerDisqualified) {
+      if (
+        tournament.viewerRole === "player" &&
+        !tournament.viewerDisqualified &&
+        !tournament.viewerContestFinished
+      ) {
         navigate(`/tournament/${id}/play`, { replace: true })
+      } else if (tournament.viewerRole === "player" && tournament.viewerContestFinished) {
+        navigate(`/tournament/${id}`, { replace: true })
       } else {
         navigate(`/tournament/${id}/spectate`, { replace: true })
       }
@@ -282,7 +316,7 @@ const TournamentLobbyPage = () => {
     }
 
     if (tournament.status === "Ended") {
-      navigate(`/tournament/${id}/spectate`, { replace: true })
+      navigate(`/tournament/${id}`, { replace: true })
       return
     }
 
@@ -317,7 +351,36 @@ const TournamentLobbyPage = () => {
     }
 
     void attemptJoin()
-  }, [tournament, id, token, profile?.id, attemptJoin, attemptWatch, navigate, toast])
+  }, [
+    tournament,
+    id,
+    token,
+    profile?.id,
+    attemptJoin,
+    attemptWatch,
+    navigate,
+    toast,
+  ])
+
+  const handleLobbyInviteAccept = async () => {
+    if (!id) return
+    setInviteBusy(true)
+    const ok = await respondModeratorInvite(id, true)
+    setInviteBusy(false)
+    if (!ok) return
+    lobbyJoinInitiated.delete(id)
+    await queryClient.refetchQueries({ queryKey: queryKeys.tournaments.detail(id) })
+    void attemptWatch()
+  }
+
+  const handleLobbyInviteDecline = async () => {
+    if (!id) return
+    setInviteBusy(true)
+    const ok = await respondModeratorInvite(id, false)
+    setInviteBusy(false)
+    if (!ok) return
+    lobbyJoinInitiated.delete(id)
+  }
 
   useEffect(() => {
     if (!token || !id) return
@@ -335,7 +398,7 @@ const TournamentLobbyPage = () => {
 
       if (state.status === "Ended") {
         enteringLiveRef.current = true
-        navigate(`/tournament/${id}/spectate`, { replace: true })
+        navigate(`/tournament/${id}`, { replace: true })
       }
     })
 
@@ -531,6 +594,32 @@ const TournamentLobbyPage = () => {
               : "Host will start manually.")}
         </p>
       </div>
+
+      {invitePending && (
+        <Card className="mt-8 p-5 sm:p-6 border border-amber-500/30 bg-amber-500/5">
+          <p className="text-accent font-semibold">Moderator invitation</p>
+          <p className="text-muted text-sm mt-2">
+            {tournament.host} invited you to moderate this tournament.
+            {tournament.status === "Live" || tournament.status === "Ended"
+              ? " The event has already started, so you can no longer accept — decline to dismiss this invite."
+              : " Accept to enter moderator view, or decline to join as a player."}
+          </p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button
+              variant="primary"
+              onClick={() => void handleLobbyInviteAccept()}
+              disabled={
+                inviteBusy || tournament.status === "Live" || tournament.status === "Ended"
+              }
+            >
+              {inviteBusy ? "Saving…" : "Accept"}
+            </Button>
+            <Button variant="secondary" onClick={() => void handleLobbyInviteDecline()} disabled={inviteBusy}>
+              Decline
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-8 p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-border">

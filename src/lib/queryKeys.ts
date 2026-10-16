@@ -20,6 +20,7 @@ export const queryKeys = {
       [...queryKeys.tournaments.lists(), filters] as const,
     details: () => [...queryKeys.tournaments.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.tournaments.details(), id] as const,
+    moderatorInvites: () => [...queryKeys.tournaments.all, "moderatorInvites"] as const,
     standings: (id: string) => [...queryKeys.tournaments.all, "standings", id] as const,
     problems: (id: string) => [...queryKeys.tournaments.all, "problems", id] as const,
     discipline: (id: string) => [...queryKeys.tournaments.all, "discipline", id] as const,

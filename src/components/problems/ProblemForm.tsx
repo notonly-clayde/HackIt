@@ -1,9 +1,13 @@
 import { useState } from "react"
+import { FaWandMagicSparkles } from "react-icons/fa6"
 import Button from "../ui/Button"
 import Field, { SelectField, TextAreaField } from "../ui/Field"
+import { useAuth } from "../../contexts/AuthContext"
 import { useToast } from "../../contexts/ToastContext"
 import { PROBLEM_TAG_OPTIONS, type ProblemTagSlug } from "../../lib/problemTags"
+import ProblemService from "../../services/ProblemService"
 import StatementMarkdownEditor from "./StatementMarkdownEditor"
+import ProblemAiGenerateModal from "./ProblemAiGenerateModal"
 import {
   formatArgLines,
   isArgListInput,
@@ -11,7 +15,12 @@ import {
   normalizeTestValue,
   type TestInputMode,
 } from "../play/runner/parseTestValue"
-import type { CreateProblemInput, ProblemDifficulty, TestCaseInput } from "../../types/api"
+import type {
+  CreateProblemInput,
+  GeneratedProblemDraft,
+  ProblemDifficulty,
+  TestCaseInput,
+} from "../../types/api"
 
 type ProblemFormProps = {
   initial?: Partial<CreateProblemInput>
@@ -30,6 +39,7 @@ const emptyTest = (isSample: boolean): TestCaseInput => ({
 const MAX_TAGS = 5
 
 const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormProps) => {
+  const { token } = useAuth()
   const toast = useToast()
   const [title, setTitle] = useState(initial?.title ?? "")
   const [statement, setStatement] = useState(initial?.statement ?? "")
@@ -56,6 +66,77 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
     initial?.testCases ? initialTests.filter((t) => !t.isSample) : [emptyTest(false)],
   )
   const [submitting, setSubmitting] = useState(false)
+  const [aiModalOpen, setAiModalOpen] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
+
+  const formHasDraftContent = () => {
+    if (title.trim() || statement.trim() || starterPython.trim() || starterJs.trim() || tags.length > 0) {
+      return true
+    }
+    const tests = [...sampleTests, ...hiddenTests]
+    return tests.some((t) => t.input.trim() || t.expectedOutput.trim())
+  }
+
+  const applyGeneratedDraft = (draft: GeneratedProblemDraft) => {
+    const mode = inputMode
+    const formatTestInput = (input: string) => (mode === "lines" ? formatArgLines(input) : input)
+
+    setTitle(draft.title)
+    setStatement(draft.statement)
+    setDifficulty(draft.difficulty)
+    setTimeLimitMs(String(draft.timeLimitMs))
+    setMemoryLimitMb(String(draft.memoryLimitMb))
+    setStarterPython(draft.starterPython ?? "")
+    setStarterJs(draft.starterJs ?? "")
+    setTags(
+      draft.tags.filter((tag): tag is ProblemTagSlug =>
+        PROBLEM_TAG_OPTIONS.some((option) => option.slug === tag),
+      ),
+    )
+
+    const samples = draft.testCases
+      .filter((t) => t.isSample)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((t) => ({
+        ...t,
+        input: formatTestInput(t.input),
+        expectedOutput: t.expectedOutput,
+      }))
+    const hidden = draft.testCases
+      .filter((t) => !t.isSample)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((t) => ({
+        ...t,
+        input: formatTestInput(t.input),
+        expectedOutput: t.expectedOutput,
+      }))
+
+    setSampleTests(samples.length > 0 ? samples : [emptyTest(true)])
+    setHiddenTests(hidden.length > 0 ? hidden : [emptyTest(false)])
+  }
+
+  const handleAiGenerate = async (payload: { prompt: string; difficulty?: ProblemDifficulty }) => {
+    setAiGenerating(true)
+    const [draft, err] = await ProblemService.generateDraft(token, {
+      ...payload,
+      inputMode,
+    })
+    setAiGenerating(false)
+
+    if (err || !draft) {
+      toast.error(err ?? "Failed to generate problem draft")
+      return
+    }
+
+    if (formHasDraftContent()) {
+      const ok = window.confirm("Replace your current draft with the AI-generated problem?")
+      if (!ok) return
+    }
+
+    applyGeneratedDraft(draft)
+    setAiModalOpen(false)
+    toast.success("AI draft applied — review tests before saving")
+  }
 
   const toggleTag = (slug: ProblemTagSlug) => {
     setTags((prev) => {
@@ -189,6 +270,18 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
 
   return (
     <form className="flex flex-col gap-5 lg:gap-6" onSubmit={handleSubmit}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted">Problem details</p>
+        <Button
+          type="button"
+          variant="ghost"
+          className="!py-1.5 !px-3 text-xs gap-1.5 border border-border hover:border-highlight/40"
+          onClick={() => setAiModalOpen(true)}
+        >
+          <FaWandMagicSparkles className="text-highlight" aria-hidden />
+          Generate with AI
+        </Button>
+      </div>
       <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
       <StatementMarkdownEditor
         value={statement}
@@ -296,6 +389,13 @@ const ProblemForm = ({ initial, submitLabel, onSubmit, onCancel }: ProblemFormPr
           {submitting ? "Saving…" : submitLabel}
         </Button>
       </div>
+      <ProblemAiGenerateModal
+        open={aiModalOpen}
+        inputMode={inputMode}
+        busy={aiGenerating}
+        onClose={() => setAiModalOpen(false)}
+        onGenerate={handleAiGenerate}
+      />
     </form>
   )
 }

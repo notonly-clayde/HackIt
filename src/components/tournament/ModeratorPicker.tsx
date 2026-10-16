@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
 import { HiOutlineXMark } from "react-icons/hi2"
 import { useAuth } from "../../contexts/AuthContext"
 import UserService from "../../services/UserService"
+import Badge from "../ui/Badge"
 import type { TournamentModerator, UserLookupItem } from "../../types/api"
 
 type ModeratorPickerProps = {
@@ -118,6 +119,11 @@ const ModeratorPicker = ({ value, onChange, disabled = false, hint }: ModeratorP
               className="inline-flex max-w-full items-center gap-1 rounded-full border border-highlight/40 bg-highlight/15 py-0.5 pl-3 pr-1 text-sm text-highlight"
             >
               <span className="truncate">{mod.email}</span>
+              {mod.inviteStatus === "pending" && (
+                <Badge tone="warn" className="!text-[10px] !py-0">
+                  Pending
+                </Badge>
+              )}
               <button
                 type="button"
                 onClick={(event) => {

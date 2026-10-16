@@ -74,6 +74,18 @@ export type CreateProblemInput = {
   testCases: TestCaseInput[]
 }
 
+export type GenerateProblemDraftInput = {
+  prompt: string
+  difficulty?: ProblemDifficulty
+  inputMode?: "lines" | "json"
+}
+
+export type GeneratedProblemDraft = CreateProblemInput & {
+  difficulty: ProblemDifficulty
+  timeLimitMs: number
+  memoryLimitMb: number
+}
+
 export type UpdateProblemInput = Partial<CreateProblemInput>
 
 export type SampleTestCase = {
@@ -147,6 +159,22 @@ export type TournamentModerator = {
   id: string
   displayName: string
   email: string
+  inviteStatus?: "pending" | "accepted"
+}
+
+export type ModeratorInviteItem = {
+  inviteId: string
+  tournamentId: string
+  tournamentName: string
+  hostDisplayName: string
+  invitedAt: string
+  tournamentStatus?: "Open" | "Soon" | "Live" | "Ended"
+}
+
+export type ModeratorInviteResolvedEvent = {
+  tournamentId: string
+  userId: string
+  status: "accepted" | "declined" | "expired"
 }
 
 export type UserLookupItem = TournamentModerator
@@ -178,6 +206,14 @@ export type TournamentItem = {
   viewerRole?: "host" | "player" | "mod" | null
   viewerDisqualified?: boolean
   viewerDisqualifyReason?: string | null
+  viewerContestFinished?: boolean
+  moderatorInvites?: Array<{
+    id: string
+    displayName: string
+    email: string
+    status: "pending"
+  }>
+  viewerModeratorInvitePending?: boolean
 }
 
 export type TournamentWarning = {
@@ -189,6 +225,14 @@ export type TournamentWarning = {
   reason: string
   createdAt: string
 }
+
+export type WarnPlayerResult = TournamentWarning & {
+  playerWarningCount: number
+  maxWarnings: number
+  disqualified: boolean
+}
+
+export const MAX_TOURNAMENT_WARNINGS = 3
 
 export type SuspensionRequestStatus = "pending" | "approved" | "rejected"
 
@@ -218,6 +262,8 @@ export type TournamentPlayerWarnedEvent = {
   reason: string
   issuedBy: string
   at: string
+  warningCount: number
+  maxWarnings: number
 }
 
 export type TournamentPlayerDisqualifiedEvent = {

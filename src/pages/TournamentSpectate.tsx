@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import Card from "../components/ui/Card"
@@ -38,6 +38,7 @@ import {
   useTournamentProblems,
   useTournamentStandings,
 } from "../hooks/queries/useTournamentQueries"
+import { useTournamentEndedScoreboardRedirect } from "../hooks/useTournamentEndedScoreboardRedirect"
 import {
   problemsFromItems,
   useTournamentLiveStateSocket,
@@ -77,6 +78,14 @@ const TournamentSpectate = () => {
   const isMod = tournament?.viewerRole === "mod"
   const canWatchAsStaff = isHost || isMod
   const { data: discipline } = useTournamentDiscipline(id, token, canWatchAsStaff && showLiveData)
+
+  const warningCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const warning of discipline?.warnings ?? []) {
+      counts[warning.playerId] = (counts[warning.playerId] ?? 0) + 1
+    }
+    return counts
+  }, [discipline?.warnings])
 
   const { contestFrozen, isResuming, secondsLeft } = useResumeCountdown({
     pausedAt: tournament?.pausedAt,
@@ -185,6 +194,8 @@ const TournamentSpectate = () => {
     })
   }, [token, id, canWatchAsStaff, queryClient])
 
+  useTournamentEndedScoreboardRedirect(id, tournament?.status)
+
   useTournamentLiveStateSocket(token, id)
   useTournamentStandingsLiveSocket(token, id)
   useTournamentProblemSetSocket(token, id)
@@ -248,7 +259,7 @@ const TournamentSpectate = () => {
       return
     }
 
-    refreshTournament()
+    navigate(`/tournament/${id}`, { replace: true })
   }
 
   if (isLoading && !tournament) {
@@ -278,7 +289,11 @@ const TournamentSpectate = () => {
   const isPaused = contestFrozen
   const resumeScheduled = isResuming && secondsLeft != null
   const resumeCountdownActive = resumeScheduled && secondsLeft > 0
-  const canEnterPlay = isLive && tournament.viewerRole === "player" && !tournament.viewerDisqualified
+  const canEnterPlay =
+    isLive &&
+    tournament.viewerRole === "player" &&
+    !tournament.viewerDisqualified &&
+    !tournament.viewerContestFinished
 
   const kicker = isEnded
     ? "Recording"
@@ -430,6 +445,7 @@ const TournamentSpectate = () => {
             standings={standings}
             selectedUserId={selectedUserId}
             onSelect={handleSelectPlayer}
+            warningCounts={canWatchAsStaff ? warningCounts : undefined}
           />
         </Card>
 

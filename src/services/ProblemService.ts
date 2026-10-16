@@ -1,6 +1,8 @@
 import ApiService from "./ApiService"
 import type {
   CreateProblemInput,
+  GeneratedProblemDraft,
+  GenerateProblemDraftInput,
   ProblemDetail,
   ProblemDifficulty,
   SubmissionResult,
@@ -39,10 +41,23 @@ class ProblemService extends ApiService {
     })
   }
 
+  async generateDraft(token: string | null, input: GenerateProblemDraftInput) {
+    return this.requestWithAuth<GeneratedProblemDraft>(`/api/problems/generate-draft`, token, {
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  }
+
   async update(token: string | null, id: string, input: UpdateProblemInput) {
     return this.requestWithAuth<ProblemDetail>(`/api/problems/${id}`, token, {
       method: "PATCH",
       body: JSON.stringify(input),
+    })
+  }
+
+  async remove(token: string | null, id: string) {
+    return this.requestWithAuth<void>(`/api/problems/${id}`, token, {
+      method: "DELETE",
     })
   }
 

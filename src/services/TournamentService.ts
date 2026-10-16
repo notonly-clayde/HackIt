@@ -4,10 +4,11 @@ import type {
   CreateProblemInput,
   SubmissionResult,
   TournamentDiscipline,
+  ModeratorInviteItem,
   TournamentItem,
   TournamentProblemItem,
   TournamentSuspensionRequest,
-  TournamentWarning,
+  WarnPlayerResult,
   TournamentStandings,
   MyTournamentWorkspace,
   PlayerWorkspaceView,
@@ -63,6 +64,17 @@ class TournamentService extends ApiService {
     return this.requestWithAuth<{ ok: true }>(`/api/tournaments/${id}/verify-password`, token, {
       method: "POST",
       body: JSON.stringify({ password }),
+    })
+  }
+
+  async listModeratorInvites(token: string | null) {
+    return this.requestWithAuth<ModeratorInviteItem[]>("/api/tournaments/moderator-invites", token)
+  }
+
+  async respondModeratorInvite(token: string | null, tournamentId: string, accept: boolean) {
+    return this.requestWithAuth<{ ok: true }>(`/api/tournaments/${tournamentId}/moderator-invite/respond`, token, {
+      method: "POST",
+      body: JSON.stringify({ accept }),
     })
   }
 
@@ -124,6 +136,12 @@ class TournamentService extends ApiService {
 
   async end(token: string | null, id: string) {
     return this.requestWithAuth<TournamentItem>(`/api/tournaments/${id}/end`, token, {
+      method: "POST",
+    })
+  }
+
+  async acceptScore(token: string | null, id: string) {
+    return this.requestWithAuth<TournamentItem>(`/api/tournaments/${id}/accept-score`, token, {
       method: "POST",
     })
   }
@@ -196,7 +214,7 @@ class TournamentService extends ApiService {
   }
 
   async warnPlayer(token: string | null, tournamentId: string, userId: string, reason: string) {
-    return this.requestWithAuth<TournamentWarning>(
+    return this.requestWithAuth<WarnPlayerResult>(
       `/api/tournaments/${tournamentId}/players/${userId}/warnings`,
       token,
       { method: "POST", body: JSON.stringify({ reason }) },

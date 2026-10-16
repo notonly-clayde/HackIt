@@ -12,6 +12,8 @@ import type {
   TournamentPlayerWarnedEvent,
   TournamentStandings,
   TournamentWorkspaceUpdate,
+  ModeratorInviteItem,
+  ModeratorInviteResolvedEvent,
   VersusDifficulty,
   VersusFocusViolationEvent,
   VersusMatch,
@@ -672,5 +674,29 @@ export function subscribeVersusDrawDeclined(
   client.on("versus:draw-declined", handle)
   void ensureLobbySocketConnected(token)
   return () => client.off("versus:draw-declined", handle)
+}
+
+export type ModeratorInviteSocketEvent = ModeratorInviteItem
+
+export function subscribeModeratorInvites(
+  token: string,
+  onInvite: (event: ModeratorInviteSocketEvent) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: ModeratorInviteSocketEvent) => onInvite(event)
+  client.on("moderator:invite", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("moderator:invite", handle)
+}
+
+export function subscribeModeratorInviteResolved(
+  token: string,
+  onResolved: (event: ModeratorInviteResolvedEvent) => void,
+): () => void {
+  const client = getLobbySocket(token)
+  const handle = (event: ModeratorInviteResolvedEvent) => onResolved(event)
+  client.on("moderator:invite-resolved", handle)
+  void ensureLobbySocketConnected(token)
+  return () => client.off("moderator:invite-resolved", handle)
 }
 

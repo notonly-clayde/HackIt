@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { subscribeModeratorInviteResolved } from "../services/socket"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "../lib/queryKeys"
@@ -46,6 +47,15 @@ const EditTournament = () => {
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
+    if (!token || !id || !tournament || tournament.hostId !== profile?.id) return
+
+    return subscribeModeratorInviteResolved(token, (event) => {
+      if (event.tournamentId !== id) return
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tournaments.detail(id) })
+    })
+  }, [token, id, tournament, profile?.id, queryClient])
+
+  useEffect(() => {
     if (!tournament || initialized) return
 
     if (profile && tournament.hostId !== profile.id) return
@@ -56,7 +66,15 @@ const EditTournament = () => {
     setStartMode(tournament.startMode)
     setCapacity(String(tournament.maxPlayers))
     setDurationMinutes(String(tournament.durationMinutes))
-    setMods(tournament.moderators)
+    const accepted = tournament.moderators.map((mod) => ({ ...mod, inviteStatus: "accepted" as const }))
+    const pending =
+      tournament.moderatorInvites?.map((mod) => ({
+        id: mod.id,
+        displayName: mod.displayName,
+        email: mod.email,
+        inviteStatus: "pending" as const,
+      })) ?? []
+    setMods([...accepted, ...pending])
     setSchedule(tournament.status === "Open" ? "now" : "later")
     if (tournament.scheduledAt) {
       const local = new Date(tournament.scheduledAt)
