@@ -12,14 +12,26 @@ import { STALE_TIME } from "../../lib/queryClient"
 import { unwrap } from "../../lib/unwrap"
 import UserService from "../../services/UserService"
 import { formatRelativeTime } from "../../utils/relativeTime"
-import type { TournamentItem, TournamentStatus } from "../../types/api"
+import type { HostedLobbyItem, TournamentStatus } from "../../types/api"
 
-const statusTone: Record<TournamentStatus, "open" | "soon" | "live" | "ended"> = {
+type HostedStatus = TournamentStatus | "Open" | "Live" | "Ended"
+
+const statusTone: Record<HostedStatus, "open" | "soon" | "live" | "ended"> = {
   Open: "open",
   Soon: "soon",
   Live: "live",
   Ended: "ended",
 }
+
+function hostedLobbyPath(item: HostedLobbyItem): string {
+  if (item.lobbyKind === "privateRoom") {
+    if (item.status === "Live") return `/versus/play/${item.id}`
+    if (item.status === "Open") return `/versus/lobby/${item.id}`
+    return `/versus`
+  }
+  return item.status === "Ended" ? `/tournament/${item.id}` : `/tournament/${item.id}/lobby`
+}
+
 
 const rowLinkClass =
   "block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight/60"
@@ -61,25 +73,27 @@ const ProfileHostedTournamentsList = ({ userId, token, title = "Hosted lobbies" 
       ) : data.length === 0 ? (
         <EmptyState
           title="No hosted lobbies yet"
-          description="Tournaments you host will show up here so you can jump back into the lobby."
+          description="Tournaments and private 1v1 rooms you host will show up here so you can jump back into the lobby."
           action={
-            <Link to="/tournament/new">
-              <Button variant="primary">
-                <HiOutlinePlus className="h-4 w-4" />
-                Create a tournament
-              </Button>
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Link to="/versus">
+                <Button variant="secondary">Create private room</Button>
+              </Link>
+              <Link to="/tournament/new">
+                <Button variant="primary">
+                  <HiOutlinePlus className="h-4 w-4" />
+                  Create a tournament
+                </Button>
+              </Link>
+            </div>
           }
         />
       ) : (
         <ul className="flex flex-col gap-2">
-          {data.map((tournament) => (
-            <li key={tournament.id}>
-              <Link
-                to={tournament.status === "Ended" ? `/tournament/${tournament.id}` : `/tournament/${tournament.id}/lobby`}
-                className={rowLinkClass}
-              >
-                <HostedRow tournament={tournament} />
+          {data.map((item) => (
+            <li key={`${item.lobbyKind ?? "tournament"}-${item.id}`}>
+              <Link to={hostedLobbyPath(item)} className={rowLinkClass}>
+                <HostedRow item={item} />
               </Link>
             </li>
           ))}
@@ -89,26 +103,50 @@ const ProfileHostedTournamentsList = ({ userId, token, title = "Hosted lobbies" 
   )
 }
 
-function HostedRow({ tournament }: { tournament: TournamentItem }) {
+function HostedRow({ item }: { item: HostedLobbyItem }) {
+  if (item.lobbyKind === "privateRoom") {
+    return (
+      <div className="ui-card ui-card-hover px-4 py-3 sm:px-5 flex flex-wrap items-center gap-3">
+        <Badge tone={statusTone[item.status]} className="shrink-0">
+          {item.status}
+        </Badge>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm truncate">
+            <span className="font-semibold text-accent">{item.name}</span>
+            <span className="text-muted"> · {item.type}</span>
+          </p>
+          <p className="text-xs text-muted mt-0.5 tabular-nums">
+            {item.players} / {item.maxPlayers} players
+            {item.passwordProtected ? " · Password" : ""}
+          </p>
+        </div>
+        {item.status !== "Ended" ? (
+          <span className="text-xs font-semibold text-highlight shrink-0">Open lobby →</span>
+        ) : null}
+        <span className="text-xs text-muted tabular-nums shrink-0">{formatRelativeTime(item.createdAt)}</span>
+      </div>
+    )
+  }
+
   return (
     <div className="ui-card ui-card-hover px-4 py-3 sm:px-5 flex flex-wrap items-center gap-3">
-      <Badge tone={statusTone[tournament.status]} className="shrink-0">
-        {tournament.status}
+      <Badge tone={statusTone[item.status]} className="shrink-0">
+        {item.status}
       </Badge>
       <div className="min-w-0 flex-1">
         <p className="text-sm truncate">
-          <span className="font-semibold text-accent">{tournament.name}</span>
-          <span className="text-muted"> · {tournament.type}</span>
+          <span className="font-semibold text-accent">{item.name}</span>
+          <span className="text-muted"> · {item.type}</span>
         </p>
         <p className="text-xs text-muted mt-0.5 tabular-nums">
-          {tournament.players} / {tournament.maxPlayers} players
-          {tournament.visibility === "private" ? " · Private" : ""}
+          {item.players} / {item.maxPlayers} players
+          {item.visibility === "private" ? " · Private" : ""}
         </p>
       </div>
-      {tournament.status !== "Ended" ? (
+      {item.status !== "Ended" ? (
         <span className="text-xs font-semibold text-highlight shrink-0">Open lobby →</span>
       ) : null}
-      <span className="text-xs text-muted tabular-nums shrink-0">{formatRelativeTime(tournament.createdAt)}</span>
+      <span className="text-xs text-muted tabular-nums shrink-0">{formatRelativeTime(item.createdAt)}</span>
     </div>
   )
 }

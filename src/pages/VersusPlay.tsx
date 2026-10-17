@@ -155,6 +155,7 @@ const VersusPlay = () => {
     })
     const unsubIntegrity = subscribeVersusIntegrityAlert(token, (event) => {
       if (event.matchId !== matchId) return
+      if (event.deduction <= 0) return
       toast.info(`${event.displayName} left the arena tab (−${event.deduction} ELO penalty)`)
     })
 
@@ -319,7 +320,11 @@ const VersusPlay = () => {
         open={confirmOpen}
         onClose={cancelLeave}
         title="Leave match?"
-        description="Leaving now will forfeit the game. Your opponent wins and your 1v1 ELO will drop."
+        description={
+          match?.kind === "private"
+            ? "Leaving now will forfeit the game. Your opponent wins. No ELO change in private rooms."
+            : "Leaving now will forfeit the game. Your opponent wins and your 1v1 ELO will drop."
+        }
         kicker="Versus"
         size="sm"
         footer={

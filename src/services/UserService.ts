@@ -4,7 +4,7 @@ import type {
   ProfileHistoryItem,
   ProfileHistoryKind,
   PublicUserProfile,
-  TournamentItem,
+  HostedLobbyItem,
   UpdateUserProfileInput,
   UserLookupItem,
   UserProfile,
@@ -41,7 +41,7 @@ class UserService extends ApiService {
   }
 
   async listHostedTournaments(token: string | null, userId: string, limit = 20) {
-    return this.requestWithAuth<TournamentItem[]>(
+    return this.requestWithAuth<HostedLobbyItem[]>(
       `/api/users/${userId}/hosted-tournaments?limit=${limit}`,
       token,
     )

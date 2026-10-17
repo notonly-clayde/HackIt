@@ -434,6 +434,7 @@ export function applyLiveStateToTournament<T extends {
   pausedTotalMs?: number
   resumeAt?: string | null
   endedAt?: string | null
+  endReason?: TournamentLiveState["endReason"]
 }>(tournament: T, state: TournamentLiveState): T {
   if (tournament.id !== state.tournamentId) return tournament
 
@@ -446,6 +447,7 @@ export function applyLiveStateToTournament<T extends {
     resumeAt: state.resumeAt,
     pausedTotalMs: state.pausedTotalMs,
     endedAt: state.endedAt,
+    endReason: state.endReason,
   }
 }
 

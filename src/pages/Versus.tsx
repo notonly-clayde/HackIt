@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import { HiOutlineBolt, HiOutlineKey, HiOutlinePlus, HiOutlineUserPlus } from "react-icons/hi2"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
@@ -15,6 +16,7 @@ import {
   subscribeVersusError,
   subscribeVersusMatchFound,
 } from "../services/socket"
+import { queryKeys } from "../lib/queryKeys"
 import type { VersusDifficulty } from "../types/api"
 
 const DIFFICULTIES: {
@@ -31,7 +33,8 @@ const DIFFICULTIES: {
 const Versus = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { token } = useAuth()
+  const { token, profile } = useAuth()
+  const queryClient = useQueryClient()
   const toast = useToast()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
@@ -64,6 +67,10 @@ const Versus = () => {
       return
     }
     setCreateOpen(false)
+    const userId = profile?.id
+    if (userId) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.hosted(userId) })
+    }
     navigate(`/versus/lobby/${room.id}`)
   }
 
@@ -270,7 +277,7 @@ const Versus = () => {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Create lobby"
-        description="Set up your game and invite a friend. Results count toward 1v1 ELO."
+        description="Set up your game and invite a friend. Practice only — no ELO or ranked stats."
         footer={
           <>
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>

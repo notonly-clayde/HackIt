@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import Badge from "../components/ui/Badge"
 import Button from "../components/ui/Button"
 import Card from "../components/ui/Card"
@@ -17,6 +18,7 @@ import {
   subscribeVersusState,
   watchVersusMatch,
 } from "../services/socket"
+import { queryKeys } from "../lib/queryKeys"
 import type { VersusMatch, VersusMatchEnded, VersusPlayerCard } from "../types/api"
 
 const URGENCY_THRESHOLD_SECONDS = 10
@@ -97,6 +99,7 @@ const VersusLobby = () => {
   const { matchId } = useParams()
   const navigate = useNavigate()
   const { token, profile } = useAuth()
+  const queryClient = useQueryClient()
   const toast = useToast()
   const { play } = useHudSound()
   const [match, setMatch] = useState<VersusMatch | null>(null)
@@ -295,6 +298,11 @@ const VersusLobby = () => {
       return
     }
     if (closeEmptyRoom) {
+      const userId = profile?.id
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.history(userId) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.hosted(userId) })
+      }
       navigate("/versus", { replace: true })
       return
     }

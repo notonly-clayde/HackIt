@@ -13,6 +13,7 @@ import { formatRelativeTime } from "../../utils/relativeTime"
 import type {
   ProfileHistoryItem,
   ProfileHistoryKind,
+  ProfileHistoryPrivateItem,
   ProfileHistoryTournamentItem,
   ProfileHistoryVersusItem,
 } from "../../types/api"
@@ -105,6 +106,8 @@ const ProfileHistoryList = ({ userId, token, canReview = false, title = "History
                 <Link to={`/tournament/${item.tournamentId}`} className={rowLinkClass}>
                   <TournamentRow item={item} />
                 </Link>
+              ) : item.kind === "private" ? (
+                <PrivateRow item={item} />
               ) : canReview ? (
                 <Link to={`/versus/review/${item.matchId}`} className={rowLinkClass}>
                   <VersusRow item={item} linkOpponent={false} />
@@ -121,14 +124,30 @@ const ProfileHistoryList = ({ userId, token, canReview = false, title = "History
 }
 
 function historyKey(item: ProfileHistoryItem): string {
-  return item.kind === "tournament" ? `tournament-${item.tournamentId}` : `versus-${item.matchId}`
+  if (item.kind === "tournament") return `tournament-${item.tournamentId}`
+  if (item.kind === "private") return `private-${item.matchId}`
+  return `versus-${item.matchId}`
 }
 
 function KindTag({ kind }: { kind: ProfileHistoryItem["kind"] }) {
-  return kind === "tournament" ? (
-    <Badge tone="warn" className="shrink-0">Tournament</Badge>
-  ) : (
-    <Badge tone="soon" className="shrink-0">1v1</Badge>
+  if (kind === "tournament") {
+    return (
+      <Badge tone="warn" className="shrink-0">
+        Tournament
+      </Badge>
+    )
+  }
+  if (kind === "private") {
+    return (
+      <Badge tone="neutral" className="shrink-0">
+        Private
+      </Badge>
+    )
+  }
+  return (
+    <Badge tone="soon" className="shrink-0">
+      1v1
+    </Badge>
   )
 }
 
@@ -152,7 +171,9 @@ function VersusRow({ item, linkOpponent }: { item: ProfileHistoryVersusItem; lin
       <div className="min-w-0 flex-1">
         <p className="text-sm truncate">
           vs {name}
-          <span className="text-muted capitalize"> · {item.difficulty}</span>
+          <span className="text-muted capitalize">
+            {item.matchKind === "private" ? " · Private" : ""} · {item.difficulty}
+          </span>
         </p>
         <p className="text-xs text-muted mt-0.5 tabular-nums">
           {item.eloBefore.toLocaleString()} → {item.eloAfter.toLocaleString()}{" "}
@@ -167,7 +188,32 @@ function VersusRow({ item, linkOpponent }: { item: ProfileHistoryVersusItem; lin
   )
 }
 
+function PrivateRow({ item }: { item: ProfileHistoryPrivateItem }) {
+  return (
+    <div className="ui-card ui-card-hover px-4 py-3 sm:px-5 flex flex-wrap items-center gap-3">
+      <Badge tone="neutral" className="min-w-8 justify-center shrink-0">
+        Aborted
+      </Badge>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm truncate">
+          <span className="font-semibold text-accent">{item.name}</span>
+          <span className="text-muted capitalize"> · 1v1 Match · {item.difficulty}</span>
+          {item.passwordProtected ? <span className="text-muted"> · Password</span> : null}
+        </p>
+        <p className="text-xs text-muted mt-0.5">Private room closed before the match went live</p>
+      </div>
+      <KindTag kind="private" />
+      <span className="text-xs text-muted tabular-nums shrink-0">{formatRelativeTime(item.endedAt)}</span>
+    </div>
+  )
+}
+
 function TournamentRow({ item }: { item: ProfileHistoryTournamentItem }) {
+  const hasElo =
+    item.eloBefore != null && item.eloAfter != null && item.eloDelta != null
+  const delta = item.eloDelta ?? 0
+  const deltaLabel = `${delta >= 0 ? "+" : ""}${delta}`
+
   return (
     <div className="ui-card ui-card-hover px-4 py-3 sm:px-5 flex flex-wrap items-center gap-3">
       <Badge
@@ -183,6 +229,13 @@ function TournamentRow({ item }: { item: ProfileHistoryTournamentItem }) {
         </p>
         <p className="text-xs text-muted mt-0.5 tabular-nums">
           {item.solved} solved · {item.score.toLocaleString()} pts
+          {hasElo ? (
+            <>
+              {" · "}
+              {item.eloBefore!.toLocaleString()} → {item.eloAfter!.toLocaleString()}{" "}
+              <span className={delta >= 0 ? "text-highlight" : "text-danger"}>({deltaLabel})</span>
+            </>
+          ) : null}
         </p>
       </div>
       <KindTag kind="tournament" />
