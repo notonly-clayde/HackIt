@@ -1,5 +1,6 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useAuth } from "../contexts/AuthContext"
 import {
   applyLiveStateToTournament,
   subscribeTournamentLiveState,
@@ -15,6 +16,12 @@ export function useTournamentLiveStateSocket(
   onEnded?: () => void,
 ) {
   const queryClient = useQueryClient()
+  const { profile, refreshProfile } = useAuth()
+  const profileSyncedForEndRef = useRef(false)
+
+  useEffect(() => {
+    profileSyncedForEndRef.current = false
+  }, [tournamentId])
 
   useEffect(() => {
     if (!token || !tournamentId) return
@@ -28,10 +35,18 @@ export function useTournamentLiveStateSocket(
       )
 
       if (state.status === "Ended") {
+        if (!profileSyncedForEndRef.current) {
+          profileSyncedForEndRef.current = true
+          void refreshProfile()
+          const userId = profile?.id
+          if (userId) {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.users.history(userId) })
+          }
+        }
         onEnded?.()
       }
     })
-  }, [token, tournamentId, queryClient, onEnded])
+  }, [token, tournamentId, queryClient, onEnded, refreshProfile, profile?.id])
 }
 
 export function useTournamentProblemSetSocket(

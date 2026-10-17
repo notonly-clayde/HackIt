@@ -17,6 +17,13 @@ const StandingsTable = ({
   tournamentId,
 }: StandingsTableProps) => {
   const entries = standings?.entries ?? []
+  const showElo = entries.some((entry) => entry.eloDelta != null)
+
+  const formatEloDelta = (delta: number | undefined) => {
+    if (delta == null) return "—"
+    if (delta === 0) return "0"
+    return `${delta > 0 ? "+" : ""}${delta}`
+  }
 
   return (
     <table className={`ui-table ${compact ? "" : "min-w-[520px]"}`}>
@@ -27,13 +34,17 @@ const StandingsTable = ({
           <th>Solved</th>
           <th>Penalty</th>
           <th>Score</th>
+          {showElo ? <th>ELO</th> : null}
           {tournamentId ? <th className="w-24" /> : null}
         </tr>
       </thead>
       <tbody>
         {entries.length === 0 ? (
           <tr>
-            <td colSpan={tournamentId ? 6 : 5} className="text-center text-muted py-8">
+            <td
+              colSpan={(tournamentId ? 6 : 5) + (showElo ? 1 : 0)}
+              className="text-center text-muted py-8"
+            >
               {emptyMessage}
             </td>
           </tr>
@@ -51,6 +62,21 @@ const StandingsTable = ({
               <td className="tabular-nums">{entry.solved}</td>
               <td className="tabular-nums">{entry.penalty}</td>
               <td className="tabular-nums">{entry.score}</td>
+              {showElo ? (
+                <td
+                  className={`tabular-nums ${
+                    entry.eloDelta == null
+                      ? "text-muted"
+                      : entry.eloDelta > 0
+                        ? "text-highlight"
+                        : entry.eloDelta < 0
+                          ? "text-danger"
+                          : "text-muted"
+                  }`}
+                >
+                  {formatEloDelta(entry.eloDelta)}
+                </td>
+              ) : null}
               {tournamentId ? (
                 <td className="text-right">
                   <ReportButton

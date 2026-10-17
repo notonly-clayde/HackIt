@@ -69,6 +69,7 @@ const VersusMatchResults = ({
   const after = (youAreA ? ended.match.playerAEloAfter : ended.match.playerBEloAfter) ?? before
   const opponent = youAreA ? ended.match.playerB : ended.match.playerA
   const solve = ended.solveElapsedMinutes ?? ended.match.solveElapsedMinutes
+  const isPrivate = ended.match.kind === "private"
 
   const title = headline(ended.result)
 
@@ -101,13 +102,17 @@ const VersusMatchResults = ({
               vs <span className="font-semibold">{opponent.displayName}</span>
               <span className="text-muted"> · {ended.match.difficulty}</span>
             </p>
-            <p className="text-accent tabular-nums">
-              ELO {before.toLocaleString()} → {after.toLocaleString()}{" "}
-              <span className="text-muted">
-                ({ended.yourEloDelta >= 0 ? "+" : ""}
-                {ended.yourEloDelta})
-              </span>
-            </p>
+            {isPrivate ? (
+              <p className="text-muted">No ELO change (private room)</p>
+            ) : (
+              <p className="text-accent tabular-nums">
+                ELO {before.toLocaleString()} → {after.toLocaleString()}{" "}
+                <span className="text-muted">
+                  ({ended.yourEloDelta >= 0 ? "+" : ""}
+                  {ended.yourEloDelta})
+                </span>
+              </p>
+            )}
             {solve != null ? (
               <p className="text-muted">Solved in {solve} min</p>
             ) : null}

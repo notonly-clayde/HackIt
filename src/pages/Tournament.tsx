@@ -11,7 +11,6 @@ import {
   HiOutlinePencilSquare,
   HiOutlineSquares2X2,
   HiOutlineTrash,
-  HiOutlineUserGroup,
   HiOutlineUserPlus,
 } from "react-icons/hi2"
 import Button from "../components/ui/Button"
@@ -48,12 +47,6 @@ const statusTone: Record<TournamentStatus, "open" | "soon" | "live" | "ended"> =
   Live: "live",
   Ended: "ended",
 }
-
-const typeOptions = [
-  { value: "", label: "All types" },
-  { value: "ffa", label: "Free For All" },
-  { value: "single", label: "1v1 Match" },
-]
 
 const statusOptions = [
   { value: "", label: "All status" },
@@ -172,7 +165,6 @@ const Tournament = () => {
   const { play } = useHudSound()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
-  const [battleType, setBattleType] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [view, setView] = useState<TournamentView>(readStoredView)
@@ -195,13 +187,9 @@ const Tournament = () => {
   const filters = useMemo(
     () => ({
       search: debouncedSearch.trim() || undefined,
-      type: (battleType === "single" ? "1v1" : battleType === "ffa" ? "ffa" : undefined) as
-        | "ffa"
-        | "1v1"
-        | undefined,
       status: (statusFilter as TournamentStatus) || undefined,
     }),
-    [debouncedSearch, battleType, statusFilter],
+    [debouncedSearch, statusFilter],
   )
 
   const { data: tournaments = [], isLoading, isFetching, error } = useTournamentList(filters)
@@ -210,9 +198,9 @@ const Tournament = () => {
   const indexOptions = useMemo(
     () => ({
       mode: "list" as const,
-      filters: { search, battleType, statusFilter },
+      filters: { search, battleType: "", statusFilter },
     }),
-    [search, battleType, statusFilter],
+    [search, statusFilter],
   )
 
   useTournamentIndexUpdates(token, indexOptions)
@@ -252,14 +240,6 @@ const Tournament = () => {
             className="ui-input pl-10 pr-4"
           />
         </div>
-        <Select
-          value={battleType}
-          onChange={setBattleType}
-          options={typeOptions}
-          className="w-full md:w-48 md:flex-none"
-          aria-label="Battle type"
-          icon={<HiOutlineUserGroup className="h-4 w-4" />}
-        />
         <Select
           value={statusFilter}
           onChange={setStatusFilter}

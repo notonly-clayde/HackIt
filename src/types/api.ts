@@ -135,6 +135,9 @@ export type StandingsEntry = {
   penalty: number
   score: number
   disqualified: boolean
+  eloBefore?: number
+  eloAfter?: number
+  eloDelta?: number
 }
 
 export type TournamentStandings = {
@@ -203,6 +206,7 @@ export type TournamentItem = {
   resumeAt?: string | null
   pausedTotalMs?: number
   endedAt?: string | null
+  endReason?: "host" | "timer" | "all_players_finished" | null
   viewerRole?: "host" | "player" | "mod" | null
   viewerDisqualified?: boolean
   viewerDisqualifyReason?: string | null
@@ -285,6 +289,8 @@ export type TournamentCatalogUpdate =
   | { action: "updated"; tournament: TournamentItem }
   | { action: "removed"; tournamentId: string }
 
+export type TournamentEndReason = "host" | "timer" | "all_players_finished"
+
 export type TournamentLiveState = {
   tournamentId: string
   status: TournamentStatus
@@ -293,6 +299,7 @@ export type TournamentLiveState = {
   resumeAt: string | null
   pausedTotalMs: number
   endedAt: string | null
+  endReason?: TournamentEndReason | null
   durationMinutes: number
 }
 
@@ -569,6 +576,7 @@ export type CreateVersusRoomInput = {
 
 export type MatchHistoryItem = {
   matchId: string
+  matchKind: "ranked" | "private"
   endedAt: string
   difficulty: VersusDifficulty
   endedReason: VersusEndedReason | null
@@ -597,6 +605,38 @@ export type ProfileHistoryTournamentItem = {
   rankTotal: number
   solved: number
   score: number
+  eloBefore?: number
+  eloAfter?: number
+  eloDelta?: number
 }
 
-export type ProfileHistoryItem = ProfileHistoryVersusItem | ProfileHistoryTournamentItem
+export type ProfileHistoryPrivateItem = {
+  kind: "private"
+  matchId: string
+  name: string
+  endedAt: string
+  difficulty: VersusDifficulty
+  passwordProtected: boolean
+  outcome: "aborted"
+}
+
+export type ProfileHistoryItem =
+  | ProfileHistoryVersusItem
+  | ProfileHistoryTournamentItem
+  | ProfileHistoryPrivateItem
+
+export type HostedPrivateRoomItem = {
+  lobbyKind: "privateRoom"
+  id: string
+  name: string
+  type: "1v1 Match"
+  status: "Open" | "Live" | "Ended"
+  players: number
+  maxPlayers: 2
+  passwordProtected: boolean
+  createdAt: string
+}
+
+export type HostedTournamentLobbyItem = TournamentItem & { lobbyKind: "tournament" }
+
+export type HostedLobbyItem = HostedTournamentLobbyItem | HostedPrivateRoomItem

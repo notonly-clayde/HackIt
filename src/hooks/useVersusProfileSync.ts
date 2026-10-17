@@ -10,12 +10,21 @@ export function useVersusProfileSync(ended: VersusMatchEnded | null) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!token || !ended || ended.result === "abort") return
+    if (!token || !ended) return
+
+    const userId = profile?.id
+    if (ended.result === "abort") {
+      if (userId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.history(userId) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.hosted(userId) })
+      }
+      return
+    }
 
     void refreshProfile()
-    const userId = profile?.id
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.history(userId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.hosted(userId) })
     }
   }, [ended, token, profile?.id, refreshProfile, queryClient])
 }

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
+import Modal from "../components/ui/Modal"
 import EmptyState from "../components/ui/EmptyState"
 import Badge from "../components/ui/Badge"
 import QueryLoadingCard from "../components/ui/QueryLoadingCard"
@@ -70,7 +71,9 @@ const TournamentSpectate = () => {
   const [viewedProblemId, setViewedProblemId] = useState<string | null>(null)
   const [acting, setActing] = useState<"pause" | "resume" | "end" | null>(null)
   const [focusAlerts, setFocusAlerts] = useState<TournamentFocusViolationEvent[]>([])
+  const [allPlayersFinishedModalOpen, setAllPlayersFinishedModalOpen] = useState(false)
   const followActiveProblemRef = useRef(true)
+  const allPlayersFinishedNotifiedRef = useRef(false)
 
   const isHost = Boolean(
     tournament && (tournament.viewerRole === "host" || (profile && tournament.hostId === profile.id)),
@@ -194,7 +197,33 @@ const TournamentSpectate = () => {
     })
   }, [token, id, canWatchAsStaff, queryClient])
 
-  useTournamentEndedScoreboardRedirect(id, tournament?.status)
+  const skipScoreboardRedirect =
+    canWatchAsStaff &&
+    (allPlayersFinishedModalOpen || tournament?.endReason === "all_players_finished")
+
+  useTournamentEndedScoreboardRedirect(id, tournament?.status, {
+    skipRedirect: skipScoreboardRedirect,
+  })
+
+  useEffect(() => {
+    allPlayersFinishedNotifiedRef.current = false
+    setAllPlayersFinishedModalOpen(false)
+  }, [id])
+
+  useEffect(() => {
+    if (!canWatchAsStaff || !tournament || tournament.status !== "Ended") return
+    if (tournament.endReason !== "all_players_finished") return
+    if (allPlayersFinishedNotifiedRef.current) return
+    allPlayersFinishedNotifiedRef.current = true
+    setAllPlayersFinishedModalOpen(true)
+  }, [canWatchAsStaff, tournament])
+
+  const handleAllPlayersFinishedConfirm = () => {
+    setAllPlayersFinishedModalOpen(false)
+    if (id) {
+      navigate(`/tournament/${id}`, { replace: true })
+    }
+  }
 
   useTournamentLiveStateSocket(token, id)
   useTournamentStandingsLiveSocket(token, id)
@@ -483,6 +512,19 @@ const TournamentSpectate = () => {
           )}
         </Card>
       </div>
+
+      <Modal
+        open={allPlayersFinishedModalOpen}
+        onClose={handleAllPlayersFinishedConfirm}
+        title="All players finished"
+        description="Every enrolled player accepted their score. The tournament has ended, tournament ELO was applied, and final standings are ready."
+        kicker="Host control"
+        footer={
+          <Button type="button" onClick={handleAllPlayersFinishedConfirm}>
+            View scoreboard
+          </Button>
+        }
+      />
     </div>
   )
 }

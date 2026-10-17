@@ -5,6 +5,7 @@ import type { TournamentStatus } from "../types/api"
 export function useTournamentEndedScoreboardRedirect(
   tournamentId: string | undefined,
   status: TournamentStatus | undefined,
+  options?: { skipRedirect?: boolean },
 ) {
   const navigate = useNavigate()
   const prevStatusRef = useRef(status)
@@ -13,9 +14,10 @@ export function useTournamentEndedScoreboardRedirect(
     const prevStatus = prevStatusRef.current
     prevStatusRef.current = status
 
+    if (options?.skipRedirect) return
     if (!tournamentId || status !== "Ended") return
     if (prevStatus !== "Live") return
 
     navigate(`/tournament/${tournamentId}`, { replace: true })
-  }, [tournamentId, status, navigate])
+  }, [tournamentId, status, navigate, options?.skipRedirect])
 }
