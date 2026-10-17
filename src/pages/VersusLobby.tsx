@@ -285,7 +285,8 @@ const VersusLobby = () => {
   }
 
   const handleLeave = async () => {
-    if (!token || !matchId || leaving) return
+    if (!token || !matchId || leaving || !match) return
+    const closeEmptyRoom = match.status === "lobby" && !opponent
     setLeaving(true)
     const [result, err] = await VersusService.leave(token, matchId)
     setLeaving(false)
@@ -293,11 +294,23 @@ const VersusLobby = () => {
       toast.error(err ?? "Failed to abort match")
       return
     }
+    if (closeEmptyRoom) {
+      navigate("/versus", { replace: true })
+      return
+    }
     setEnded(result)
     setMatch(result.match)
   }
 
-  if (loading || !match || !you || (!opponent && !waitingForGuest)) {
+  const isTerminalMatch =
+    match?.status === "aborted" || match?.status === "ended"
+
+  if (
+    loading ||
+    !match ||
+    !you ||
+    (!opponent && !waitingForGuest && !ended && !isTerminalMatch)
+  ) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
         <QueryLoadingCard message="Loading match lobby…" />
