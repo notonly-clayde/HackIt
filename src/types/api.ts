@@ -413,6 +413,13 @@ export type ActivityLogFilters = {
   limit?: number
 }
 
+export type AdminDashboardSummary = {
+  totalUsers: number
+  activeTournaments: number
+  openReports: number
+  activeMatches: number
+}
+
 export type ActivityLogListResponse = {
   items: ActivityLogItem[]
   nextCursor: string | null

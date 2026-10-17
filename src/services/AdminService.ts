@@ -2,6 +2,7 @@ import ApiService from "./ApiService"
 import type {
   ActivityLogFilters,
   ActivityLogListResponse,
+  AdminDashboardSummary,
   AdminUserDetail,
   ReportItem,
   ReportStatus,
@@ -11,6 +12,10 @@ import type {
 } from "../types/api"
 
 class AdminService extends ApiService {
+  async getDashboardSummary(token: string | null) {
+    return this.requestWithAuth<AdminDashboardSummary>("/api/admin/dashboard/summary", token)
+  }
+
   async listReports(token: string | null, status: ReportStatus = "open") {
     return this.requestWithAuth<ReportItem[]>(`/api/admin/reports?status=${status}`, token)
   }

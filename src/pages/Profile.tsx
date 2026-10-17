@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { HiCheck, HiOutlineBolt, HiOutlinePencilSquare, HiOutlineTrophy } from "react-icons/hi2"
+import { useQuery } from "@tanstack/react-query"
+import {
+  HiCheck,
+  HiOutlineBolt,
+  HiOutlinePencilSquare,
+  HiOutlineTrophy,
+  HiOutlineUsers,
+} from "react-icons/hi2"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import Card from "../components/ui/Card"
@@ -8,8 +15,14 @@ import Button from "../components/ui/Button"
 import Modal from "../components/ui/Modal"
 import Field from "../components/ui/Field"
 import UserService from "../services/UserService"
+import AdminService from "../services/AdminService"
 import ProfileActivitySection from "../components/profile/ProfileActivitySection"
+import ProfileAdminActivitySection from "../components/profile/ProfileAdminActivitySection"
 import { isEmailVerifiedForAccess } from "../lib/emailVerification"
+import { queryKeys } from "../lib/queryKeys"
+import { unwrap } from "../lib/unwrap"
+import { STALE_TIME } from "../lib/queryClient"
+import { useQueryErrorToast } from "../hooks/useQueryErrorToast"
 
 const Profile = () => {
   const { user, profile, token, setProfile, refreshProfile } = useAuth()
@@ -19,6 +32,8 @@ const Profile = () => {
   const [bio, setBio] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const isAdmin = profile?.role === "admin"
 
   const shownName =
     profile?.displayName?.trim() ||
@@ -40,12 +55,45 @@ const Profile = () => {
     if (token) void refreshProfile()
   }, [token, refreshProfile])
 
-  const stats = [
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    error: summaryError,
+  } = useQuery({
+    queryKey: queryKeys.admin.dashboardSummary(),
+    queryFn: async () => unwrap(await AdminService.getDashboardSummary(token)),
+    enabled: Boolean(token) && isAdmin,
+    staleTime: STALE_TIME.catalog,
+  })
+  useQueryErrorToast(summaryError)
+
+  const playerStats = [
     { label: "1v1 ELO", value: (profile?.elo1v1 ?? 1200).toLocaleString() },
     { label: "Tournament ELO", value: (profile?.eloTournament ?? 1200).toLocaleString() },
     { label: "Wins", value: String(profile?.wins ?? 0) },
     { label: "Matches", value: String(profile?.matchCount ?? 0) },
   ]
+
+  const adminStats = [
+    {
+      label: "Total users",
+      value: summaryLoading ? "…" : summary ? summary.totalUsers.toLocaleString() : "—",
+    },
+    {
+      label: "Active tournaments",
+      value: summaryLoading ? "…" : summary ? summary.activeTournaments.toLocaleString() : "—",
+    },
+    {
+      label: "Open reports",
+      value: summaryLoading ? "…" : summary ? summary.openReports.toLocaleString() : "—",
+    },
+    {
+      label: "Active matches",
+      value: summaryLoading ? "…" : summary ? summary.activeMatches.toLocaleString() : "—",
+    },
+  ]
+
+  const stats = isAdmin ? adminStats : playerStats
 
   const openEdit = () => {
     setDisplayName(profile?.displayName ?? shownName)
@@ -105,7 +153,9 @@ const Profile = () => {
             </div>
 
             <div className="flex-1 text-center sm:text-left min-w-0">
-              <p className="ui-kicker mb-1 justify-center sm:justify-start">Player dossier</p>
+              <p className="ui-kicker mb-1 justify-center sm:justify-start">
+                {isAdmin ? "Administrator profile" : "Player dossier"}
+              </p>
               <h1 className="font-bold text-2xl sm:text-3xl lg:text-4xl text-accent tracking-tight truncate">
                 {shownName}
               </h1>
@@ -116,18 +166,37 @@ const Profile = () => {
                   <HiOutlinePencilSquare className="h-4 w-4" />
                   Edit profile
                 </Button>
-                <Link to="/versus">
-                  <Button variant="primary">
-                    <HiOutlineBolt className="h-4 w-4" />
-                    Challenge someone
-                  </Button>
-                </Link>
-                <Link to="/tournament">
-                  <Button variant="ghost">
-                    <HiOutlineTrophy className="h-4 w-4" />
-                    Find tournament
-                  </Button>
-                </Link>
+                {isAdmin ? (
+                  <>
+                    <Link to="/admin/users">
+                      <Button variant="primary">
+                        <HiOutlineUsers className="h-4 w-4" />
+                        Manage users
+                      </Button>
+                    </Link>
+                    <Link to="/tournament">
+                      <Button variant="ghost">
+                        <HiOutlineTrophy className="h-4 w-4" />
+                        View tournaments
+                      </Button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/versus">
+                      <Button variant="primary">
+                        <HiOutlineBolt className="h-4 w-4" />
+                        Challenge someone
+                      </Button>
+                    </Link>
+                    <Link to="/tournament">
+                      <Button variant="ghost">
+                        <HiOutlineTrophy className="h-4 w-4" />
+                        Find tournament
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -143,14 +212,22 @@ const Profile = () => {
         </section>
 
         {profile?.id ? (
-          <ProfileActivitySection userId={profile.id} token={token} />
+          isAdmin ? (
+            <ProfileAdminActivitySection actorId={profile.id} token={token} />
+          ) : (
+            <ProfileActivitySection userId={profile.id} token={token} />
+          )
         ) : null}
 
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         title="Edit profile"
-        description="Update how you appear on HackIT. Stats stay match-driven."
+        description={
+          isAdmin
+            ? "Update how you appear on HackIT."
+            : "Update how you appear on HackIT. Stats stay match-driven."
+        }
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" onClick={() => setEditOpen(false)}>

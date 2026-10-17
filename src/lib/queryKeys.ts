@@ -41,6 +41,7 @@ export const queryKeys = {
     problems: () => ["admin", "problems"] as const,
     reports: (status = "open") => ["admin", "reports", status] as const,
     reportCount: () => ["admin", "reports", "count"] as const,
+    dashboardSummary: () => ["admin", "dashboard", "summary"] as const,
     users: (filters: { search?: string; status?: string; role?: string } = {}) =>
       ["admin", "users", filters] as const,
     user: (id: string) => ["admin", "user", id] as const,
